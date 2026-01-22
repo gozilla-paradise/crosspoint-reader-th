@@ -99,6 +99,23 @@ void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle)
     }
 #endif
 
+    // Check if the previous word was Thai - if so, this Thai word should connect
+    // without spacing even if they came from separate addWord calls (due to HTML whitespace)
+    // Exception: don't merge after Thai punctuation marks (ๆ, ฯ) which act as word boundaries
+    bool prevWordWasThai = false;
+    if (!words.empty() && ThaiShaper::containsThai(words.back().c_str())) {
+      const std::string& prev = words.back();
+      // Check if previous word IS or ENDS WITH Thai punctuation
+      // ๆ (U+0E46) and ฯ (U+0E2F) act as word boundaries
+      static const char MAIYAMOK[] = "\xE0\xB9\x86";    // ๆ
+      static const char PAIYANNOI[] = "\xE0\xB8\xAF";   // ฯ
+      bool endsWithThaiPunct = (prev == MAIYAMOK || prev == PAIYANNOI ||
+                                (prev.size() >= 3 &&
+                                 (prev.compare(prev.size() - 3, 3, MAIYAMOK) == 0 ||
+                                  prev.compare(prev.size() - 3, 3, PAIYANNOI) == 0)));
+      prevWordWasThai = !endsWithThaiPunct;
+    }
+
     bool isFirst = true;
     for (auto& segment : segmentedWords) {
       if (!segment.empty()) {
@@ -108,7 +125,8 @@ void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle)
 #endif
         words.push_back(std::move(segment));
         wordStyles.push_back(fontStyle);
-        wordNoSpaceBefore.push_back(!isFirst);  // No space before Thai cluster continuations
+        // No space before Thai cluster continuations, OR if previous word was Thai
+        wordNoSpaceBefore.push_back(!isFirst || prevWordWasThai);
         isFirst = false;
       }
     }
@@ -452,9 +470,12 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
   std::advance(noSpaceIt, lastBreakAt);
   for (size_t i = lastBreakAt; i < lineBreak; i++) {
     const uint16_t currentWordWidth = wordWidths[i];
+    // Add spacing BEFORE this word if: not first word AND noSpaceBefore is false
+    if (i != lastBreakAt && !*noSpaceIt) {
+      xpos += spacing;
+    }
     lineXPos.push_back(xpos);
-    const bool skipSpacing = (i == lastBreakAt) || *noSpaceIt;
-    xpos += currentWordWidth + (skipSpacing ? 0 : spacing);
+    xpos += currentWordWidth;
     ++noSpaceIt;
   }
 
