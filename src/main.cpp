@@ -14,10 +14,12 @@
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
+#include "RecentBooksStore.h"
 #include "activities/boot_sleep/BootActivity.h"
 #include "activities/boot_sleep/SleepActivity.h"
 #include "activities/browser/OpdsBookBrowserActivity.h"
 #include "activities/home/HomeActivity.h"
+#include "activities/home/MyLibraryActivity.h"
 #include "activities/network/CrossPointWebServerActivity.h"
 #include "activities/reader/ReaderActivity.h"
 #include "activities/settings/SettingsActivity.h"
@@ -70,30 +72,30 @@ EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
 
-EpdFont notosans12RegularFont(&notosans_12_regular);
-EpdFont notosans12BoldFont(&notosans_12_bold);
-EpdFont notosans12ItalicFont(&notosans_12_italic);
-EpdFont notosans12BoldItalicFont(&notosans_12_bolditalic);
-EpdFontFamily notosans12FontFamily(&notosans12RegularFont, &notosans12BoldFont, &notosans12ItalicFont,
-                                   &notosans12BoldItalicFont);
-EpdFont notosans14RegularFont(&notosans_14_regular);
-EpdFont notosans14BoldFont(&notosans_14_bold);
-EpdFont notosans14ItalicFont(&notosans_14_italic);
-EpdFont notosans14BoldItalicFont(&notosans_14_bolditalic);
-EpdFontFamily notosans14FontFamily(&notosans14RegularFont, &notosans14BoldFont, &notosans14ItalicFont,
-                                   &notosans14BoldItalicFont);
-EpdFont notosans16RegularFont(&notosans_16_regular);
-EpdFont notosans16BoldFont(&notosans_16_bold);
-EpdFont notosans16ItalicFont(&notosans_16_italic);
-EpdFont notosans16BoldItalicFont(&notosans_16_bolditalic);
-EpdFontFamily notosans16FontFamily(&notosans16RegularFont, &notosans16BoldFont, &notosans16ItalicFont,
-                                   &notosans16BoldItalicFont);
-EpdFont notosans18RegularFont(&notosans_18_regular);
-EpdFont notosans18BoldFont(&notosans_18_bold);
-EpdFont notosans18ItalicFont(&notosans_18_italic);
-EpdFont notosans18BoldItalicFont(&notosans_18_bolditalic);
-EpdFontFamily notosans18FontFamily(&notosans18RegularFont, &notosans18BoldFont, &notosans18ItalicFont,
-                                   &notosans18BoldItalicFont);
+// EpdFont notosans12RegularFont(&notosans_12_regular);
+// EpdFont notosans12BoldFont(&notosans_12_bold);
+// EpdFont notosans12ItalicFont(&notosans_12_italic);
+// EpdFont notosans12BoldItalicFont(&notosans_12_bolditalic);
+// EpdFontFamily notosans12FontFamily(&notosans12RegularFont, &notosans12BoldFont, &notosans12ItalicFont,
+//                                    &notosans12BoldItalicFont);
+// EpdFont notosans14RegularFont(&notosans_14_regular);
+// EpdFont notosans14BoldFont(&notosans_14_bold);
+// EpdFont notosans14ItalicFont(&notosans_14_italic);
+// EpdFont notosans14BoldItalicFont(&notosans_14_bolditalic);
+// EpdFontFamily notosans14FontFamily(&notosans14RegularFont, &notosans14BoldFont, &notosans14ItalicFont,
+//                                    &notosans14BoldItalicFont);
+// EpdFont notosans16RegularFont(&notosans_16_regular);
+// EpdFont notosans16BoldFont(&notosans_16_bold);
+// EpdFont notosans16ItalicFont(&notosans_16_italic);
+// EpdFont notosans16BoldItalicFont(&notosans_16_bolditalic);
+// EpdFontFamily notosans16FontFamily(&notosans16RegularFont, &notosans16BoldFont, &notosans16ItalicFont,
+//                                    &notosans16BoldItalicFont);
+// EpdFont notosans18RegularFont(&notosans_18_regular);
+// EpdFont notosans18BoldFont(&notosans_18_bold);
+// EpdFont notosans18ItalicFont(&notosans_18_italic);
+// EpdFont notosans18BoldItalicFont(&notosans_18_bolditalic);
+// EpdFontFamily notosans18FontFamily(&notosans18RegularFont, &notosans18BoldFont, &notosans18ItalicFont,
+//                                    &notosans18BoldItalicFont);
 
 EpdFont notosansthai8RegularFont(&notosansthai_8_regular);
 EpdFontFamily notosansthai8FontFamily(&notosansthai8RegularFont);
@@ -116,6 +118,22 @@ EpdFontFamily notosansthai16FontFamily(&notosansthai16RegularFont, &notosansthai
 EpdFont notosansthai18RegularFont(&notosansthai_18_regular);
 EpdFont notosansthai18BoldFont(&notosansthai_18_bold);
 EpdFontFamily notosansthai18FontFamily(&notosansthai18RegularFont, &notosansthai18BoldFont);
+
+EpdFont garuda12RegularFont(&garuda_12_regular);
+EpdFont garuda12BoldFont(&garuda_12_bold);
+EpdFontFamily garuda12FontFamily(&garuda12RegularFont, &garuda12BoldFont);
+
+EpdFont garuda14RegularFont(&garuda_14_regular);
+EpdFont garuda14BoldFont(&garuda_14_bold);
+EpdFontFamily garuda14FontFamily(&garuda14RegularFont, &garuda14BoldFont);
+
+EpdFont garuda16RegularFont(&garuda_16_regular);
+EpdFont garuda16BoldFont(&garuda_16_bold);
+EpdFontFamily garuda16FontFamily(&garuda16RegularFont, &garuda16BoldFont);
+
+EpdFont garuda18RegularFont(&garuda_18_regular);
+EpdFont garuda18BoldFont(&garuda_18_bold);
+EpdFontFamily garuda18FontFamily(&garuda18RegularFont, &garuda18BoldFont);
 
 EpdFont opendyslexic8RegularFont(&opendyslexic_8_regular);
 EpdFont opendyslexic8BoldFont(&opendyslexic_8_bold);
@@ -143,8 +161,8 @@ EpdFontFamily opendyslexic14FontFamily(&opendyslexic14RegularFont, &opendyslexic
                                        &opendyslexic14BoldItalicFont);
 #endif  // OMIT_FONTS
 
-EpdFont smallFont(&notosans_8_regular);
-EpdFontFamily smallFontFamily(&smallFont);
+// EpdFont smallFont(&notosans_8_regular);
+// EpdFontFamily smallFontFamily(&smallFont);
 
 EpdFont ui10RegularFont(&ubuntu_10_regular);
 EpdFont ui10BoldFont(&ubuntu_10_bold);
@@ -233,12 +251,13 @@ void enterDeepSleep() {
 }
 
 void onGoHome();
-void onGoToReader(const std::string& initialEpubPath) {
+void onGoToMyLibraryWithTab(const std::string& path, MyLibraryActivity::Tab tab);
+void onGoToReader(const std::string& initialEpubPath, MyLibraryActivity::Tab fromTab) {
   exitActivity();
-  enterNewActivity(new ReaderActivity(renderer, mappedInputManager, initialEpubPath, onGoHome));
+  enterNewActivity(
+      new ReaderActivity(renderer, mappedInputManager, initialEpubPath, fromTab, onGoHome, onGoToMyLibraryWithTab));
 }
-void onGoToReaderHome() { onGoToReader(std::string()); }
-void onContinueReading() { onGoToReader(APP_STATE.openEpubPath); }
+void onContinueReading() { onGoToReader(APP_STATE.openEpubPath, MyLibraryActivity::Tab::Recent); }
 
 void onGoToFileTransfer() {
   exitActivity();
@@ -250,6 +269,16 @@ void onGoToSettings() {
   enterNewActivity(new SettingsActivity(renderer, mappedInputManager, onGoHome));
 }
 
+void onGoToMyLibrary() {
+  exitActivity();
+  enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader));
+}
+
+void onGoToMyLibraryWithTab(const std::string& path, MyLibraryActivity::Tab tab) {
+  exitActivity();
+  enterNewActivity(new MyLibraryActivity(renderer, mappedInputManager, onGoHome, onGoToReader, tab, path));
+}
+
 void onGoToBrowser() {
   exitActivity();
   enterNewActivity(new OpdsBookBrowserActivity(renderer, mappedInputManager, onGoHome));
@@ -257,7 +286,7 @@ void onGoToBrowser() {
 
 void onGoHome() {
   exitActivity();
-  enterNewActivity(new HomeActivity(renderer, mappedInputManager, onContinueReading, onGoToReaderHome, onGoToSettings,
+  enterNewActivity(new HomeActivity(renderer, mappedInputManager, onContinueReading, onGoToMyLibrary, onGoToSettings,
                                     onGoToFileTransfer, onGoToBrowser));
 }
 
@@ -270,15 +299,20 @@ void setupDisplayAndFonts() {
   renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
 
-  renderer.insertFont(NOTOSANS_12_FONT_ID, notosans12FontFamily);
-  renderer.insertFont(NOTOSANS_14_FONT_ID, notosans14FontFamily);
-  renderer.insertFont(NOTOSANS_16_FONT_ID, notosans16FontFamily);
-  renderer.insertFont(NOTOSANS_18_FONT_ID, notosans18FontFamily);
+  renderer.insertFont(NOTOSANS_12_FONT_ID, notosansthai12FontFamily);
+  renderer.insertFont(NOTOSANS_14_FONT_ID, notosansthai14FontFamily);
+  renderer.insertFont(NOTOSANS_16_FONT_ID, notosansthai16FontFamily);
+  renderer.insertFont(NOTOSANS_18_FONT_ID, notosansthai18FontFamily);
 
   renderer.insertFont(NOTOSANSTHAI_12_FONT_ID, notosansthai12FontFamily);
   renderer.insertFont(NOTOSANSTHAI_14_FONT_ID, notosansthai14FontFamily);
   renderer.insertFont(NOTOSANSTHAI_16_FONT_ID, notosansthai16FontFamily);
   renderer.insertFont(NOTOSANSTHAI_18_FONT_ID, notosansthai18FontFamily);
+
+  renderer.insertFont(GARUDA_12_FONT_ID, garuda12FontFamily);
+  renderer.insertFont(GARUDA_14_FONT_ID, garuda14FontFamily);
+  renderer.insertFont(GARUDA_16_FONT_ID, garuda16FontFamily);
+  renderer.insertFont(GARUDA_18_FONT_ID, garuda18FontFamily);
 
   renderer.insertFont(OPENDYSLEXIC_8_FONT_ID, opendyslexic8FontFamily);
   renderer.insertFont(OPENDYSLEXIC_10_FONT_ID, opendyslexic10FontFamily);
@@ -291,13 +325,30 @@ void setupDisplayAndFonts() {
   Serial.printf("[%lu] [   ] Fonts setup\n", millis());
 }
 
+bool isUsbConnected() {
+  // U0RXD/GPIO20 reads HIGH when USB is connected
+  return digitalRead(UART0_RXD) == HIGH;
+}
+
+bool isWakeupAfterFlashing() {
+  const auto wakeupCause = esp_sleep_get_wakeup_cause();
+  const auto resetReason = esp_reset_reason();
+
+  return isUsbConnected() && (wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED) && (resetReason == ESP_RST_UNKNOWN);
+}
+
 void setup() {
   t1 = millis();
 
   // Only start serial if USB connected
   pinMode(UART0_RXD, INPUT);
-  if (digitalRead(UART0_RXD) == HIGH) {
+  if (isUsbConnected()) {
     Serial.begin(115200);
+    // Wait up to 3 seconds for Serial to be ready to catch early logs
+    unsigned long start = millis();
+    while (!Serial && (millis() - start) < 3000) {
+      delay(10);
+    }
   }
 
   inputManager.begin();
@@ -320,8 +371,10 @@ void setup() {
   SETTINGS.loadFromFile();
   KOREADER_STORE.loadFromFile();
 
-  // verify power button press duration after we've read settings.
-  verifyWakeupLongPress();
+  if (!isWakeupAfterFlashing()) {
+    // For normal wakeups (not immediately after flashing), verify long press
+    verifyWakeupLongPress();
+  }
 
   // First serial output only here to avoid timing inconsistencies for power button press duration verification
   Serial.printf("[%lu] [   ] Starting CrossPoint version " CROSSPOINT_VERSION "\n", millis());
@@ -332,6 +385,8 @@ void setup() {
   enterNewActivity(new BootActivity(renderer, mappedInputManager));
 
   APP_STATE.loadFromFile();
+  RECENT_BOOKS.loadFromFile();
+
   if (APP_STATE.openEpubPath.empty()) {
     onGoHome();
   } else {
@@ -340,7 +395,7 @@ void setup() {
     APP_STATE.openEpubPath = "";
     APP_STATE.lastSleepImage = 0;
     APP_STATE.saveToFile();
-    onGoToReader(path);
+    onGoToReader(path, MyLibraryActivity::Tab::Recent);
   }
 
   // Ensure we're not still holding the power button before leaving setup

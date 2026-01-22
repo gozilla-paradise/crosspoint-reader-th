@@ -16,23 +16,23 @@
 #include <builtinFonts/bookerly_18_bolditalic.h>
 #include <builtinFonts/bookerly_18_italic.h>
 #include <builtinFonts/bookerly_18_regular.h>
-#include <builtinFonts/notosans_8_regular.h>
-#include <builtinFonts/notosans_12_bold.h>
-#include <builtinFonts/notosans_12_bolditalic.h>
-#include <builtinFonts/notosans_12_italic.h>
-#include <builtinFonts/notosans_12_regular.h>
-#include <builtinFonts/notosans_14_bold.h>
-#include <builtinFonts/notosans_14_bolditalic.h>
-#include <builtinFonts/notosans_14_italic.h>
-#include <builtinFonts/notosans_14_regular.h>
-#include <builtinFonts/notosans_16_bold.h>
-#include <builtinFonts/notosans_16_bolditalic.h>
-#include <builtinFonts/notosans_16_italic.h>
-#include <builtinFonts/notosans_16_regular.h>
-#include <builtinFonts/notosans_18_bold.h>
-#include <builtinFonts/notosans_18_bolditalic.h>
-#include <builtinFonts/notosans_18_italic.h>
-#include <builtinFonts/notosans_18_regular.h>
+// #include <builtinFonts/notosans_8_regular.h>
+// #include <builtinFonts/notosans_12_bold.h>
+// #include <builtinFonts/notosans_12_bolditalic.h>
+// #include <builtinFonts/notosans_12_italic.h>
+// #include <builtinFonts/notosans_12_regular.h>
+// #include <builtinFonts/notosans_14_bold.h>
+// #include <builtinFonts/notosans_14_bolditalic.h>
+// #include <builtinFonts/notosans_14_italic.h>
+// #include <builtinFonts/notosans_14_regular.h>
+// #include <builtinFonts/notosans_16_bold.h>
+// #include <builtinFonts/notosans_16_bolditalic.h>
+// #include <builtinFonts/notosans_16_italic.h>
+// #include <builtinFonts/notosans_16_regular.h>
+// #include <builtinFonts/notosans_18_bold.h>
+// #include <builtinFonts/notosans_18_bolditalic.h>
+// #include <builtinFonts/notosans_18_italic.h>
+// #include <builtinFonts/notosans_18_regular.h>
 #include <builtinFonts/notosansthai_8_regular.h>
 #include <builtinFonts/notosansthai_10_regular.h>
 #include <builtinFonts/notosansthai_12_regular.h>
@@ -43,6 +43,14 @@
 #include <builtinFonts/notosansthai_16_bold.h>
 #include <builtinFonts/notosansthai_18_regular.h>
 #include <builtinFonts/notosansthai_18_bold.h>
+#include <builtinFonts/garuda_12_regular.h>
+#include <builtinFonts/garuda_12_bold.h>
+#include <builtinFonts/garuda_14_regular.h>
+#include <builtinFonts/garuda_14_bold.h>
+#include <builtinFonts/garuda_16_regular.h>
+#include <builtinFonts/garuda_16_bold.h>
+#include <builtinFonts/garuda_18_regular.h>
+#include <builtinFonts/garuda_18_bold.h>
 #include <builtinFonts/opendyslexic_10_bold.h>
 #include <builtinFonts/opendyslexic_10_bolditalic.h>
 #include <builtinFonts/opendyslexic_10_italic.h>

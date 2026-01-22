@@ -9,6 +9,19 @@ BOOKERLY_FONT_SIZES=(12 14 16 18)
 NOTOSANS_FONT_SIZES=(12 14 16 18)
 OPENDYSLEXIC_FONT_SIZES=(8 10 12 14)
 
+GARUDA_FONT_STYLE=("Regular" "Bold")
+GARUDA_FONT_SIZES=(12 14 16 18)
+
+for size in ${GARUDA_FONT_SIZES[@]}; do
+  for style in ${GARUDA_FONT_STYLE[@]}; do
+    font_name="garuda_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
+    font_path="../builtinFonts/source/Garuda/Garuda-${style}.ttf"
+    output_path="../builtinFonts/${font_name}.h"
+    python fontconvert.py $font_name $size $font_path > $output_path
+    echo "Generated $output_path"
+  done
+done
+
 # for size in ${BOOKERLY_FONT_SIZES[@]}; do
 #   for style in ${READER_FONT_STYLES[@]}; do
 #     font_name="bookerly_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
@@ -29,18 +42,18 @@ OPENDYSLEXIC_FONT_SIZES=(8 10 12 14)
 #   done
 # done
 
-NOTOSANSTHAI_FONT_STYLES=("Regular")
-NOTOSANSTHAI_FONT_SIZES=(8 10)
+# NOTOSANSTHAI_FONT_STYLES=("Regular")
+# NOTOSANSTHAI_FONT_SIZES=(8 10)
 
-for size in ${NOTOSANSTHAI_FONT_SIZES[@]}; do
-  for style in ${NOTOSANSTHAI_FONT_STYLES[@]}; do
-    font_name="notosansthai_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
-    font_path="../builtinFonts/source/NotoSansThai/NotoSansThai-${style}.ttf"
-    output_path="../builtinFonts/${font_name}.h"
-    python fontconvert.py $font_name $size $font_path > $output_path
-    echo "Generated $output_path"
-  done
-done
+# for size in ${NOTOSANSTHAI_FONT_SIZES[@]}; do
+#   for style in ${NOTOSANSTHAI_FONT_STYLES[@]}; do
+#     font_name="notosansthai_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
+#     font_path="../builtinFonts/source/NotoSansThai/NotoSansThai-${style}.ttf"
+#     output_path="../builtinFonts/${font_name}.h"
+#     python fontconvert.py $font_name $size $font_path > $output_path
+#     echo "Generated $output_path"
+#   done
+# done
 
 # for size in ${OPENDYSLEXIC_FONT_SIZES[@]}; do
 #   for style in ${READER_FONT_STYLES[@]}; do

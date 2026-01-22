@@ -246,15 +246,16 @@ void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, con
     if (screenY >= getScreenHeight()) {
       break;
     }
-    if (screenY < 0) {
-      continue;
-    }
 
     if (bitmap.readNextRow(outputRow, rowBytes) != BmpReaderError::Ok) {
       Serial.printf("[%lu] [GFX] Failed to read row %d from bitmap\n", millis(), bmpY);
       free(outputRow);
       free(rowBytes);
       return;
+    }
+
+    if (screenY < 0) {
+      continue;
     }
 
     if (bmpY < cropPixY) {
@@ -903,7 +904,7 @@ void GfxRenderer::renderThaiCluster(const EpdFontFamily& fontFamily, const ThaiS
   // Calculate scale factor for y-offsets based on font size
   // Thai offset values are designed for typical font metrics
   const int fontHeight = fontData->advanceY;
-  const float yScale = fontHeight / 16.0f;  // Normalize to ~16pt reference
+  const float yScale = fontHeight / 18.0f;  // Normalize to ~18pt reference
 
   // Track the maximum advance for this cluster (for non-combining glyphs)
   int clusterAdvance = 0;
