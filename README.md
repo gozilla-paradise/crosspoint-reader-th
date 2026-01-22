@@ -1,27 +1,26 @@
-# CrossPoint Reader
+# CrossPoint Reader TH
 
-Firmware for the **Xteink X4** e-paper display reader (unaffiliated with Xteink).
+Thai language fork of [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) — firmware for the **Xteink X4** e-paper display reader (unaffiliated with Xteink).
 Built using **PlatformIO** and targeting the **ESP32-C3** microcontroller.
 
-CrossPoint Reader is a purpose-built firmware designed to be a drop-in, fully open-source replacement for the official 
-Xteink firmware. It aims to match or improve upon the standard EPUB reading experience.
+This fork adds **Thai language support** including proper Thai text rendering, word segmentation, and glyph shaping for Thai EPUB content.
 
 ![](./docs/images/cover.jpg)
 
 ## Motivation
 
-E-paper devices are fantastic for reading, but most commercially available readers are closed systems with limited 
-customisation. The **Xteink X4** is an affordable, e-paper device, however the official firmware remains closed.
-CrossPoint exists partly as a fun side-project and partly to open up the ecosystem and truely unlock the device's
-potential.
+This fork extends the excellent [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) project with Thai language support. Thai text requires special handling due to:
+- Complex script with combining marks (vowels, tone marks above/below consonants)
+- No spaces between words (requires cluster-based word segmentation)
+- Proper glyph shaping for correct visual rendering
 
-CrossPoint Reader aims to:
-* Provide a **fully open-source alternative** to the official firmware.
-* Offer a **document reader** capable of handling EPUB content on constrained hardware.
-* Support **customisable font, layout, and display** options.
-* Run purely on the **Xteink X4 hardware**.
+CrossPoint Reader TH aims to:
+* Provide Thai EPUB reading capability on the **Xteink X4**.
+* Properly render Thai text with correct glyph positioning.
+* Handle Thai word boundaries for line wrapping.
+* Maintain compatibility with upstream CrossPoint features.
 
-This project is **not affiliated with Xteink**; it's built as a community project.
+This project is **not affiliated with Xteink**; it's built as a community fork.
 
 ## Features & Usage
 
@@ -40,6 +39,11 @@ This project is **not affiliated with Xteink**; it's built as a community projec
   - [ ] User provided fonts
   - [ ] Full UTF support
 - [x] Screen rotation
+- [x] **Thai language support** (this fork)
+  - [x] Thai text rendering with proper glyph shaping
+  - [x] Thai cluster-based word segmentation
+  - [x] Built-in NotoSansThai font
+  - [x] Thai punctuation and spacing handling
 
 See [the user guide](./USER_GUIDE.md) for instructions on operating CrossPoint.
 
