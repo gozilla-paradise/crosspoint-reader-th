@@ -43,6 +43,12 @@
 #include <builtinFonts/notosansthai_16_bold.h>
 #include <builtinFonts/notosansthai_18_regular.h>
 #include <builtinFonts/notosansthai_18_bold.h>
+
+#include <builtinFonts/cloudloop_12_regular.h>
+#include <builtinFonts/cloudloop_14_regular.h>
+#include <builtinFonts/cloudloop_16_regular.h>
+#include <builtinFonts/cloudloop_18_regular.h>
+
 #include <builtinFonts/garuda_12_regular.h>
 #include <builtinFonts/garuda_12_bold.h>
 #include <builtinFonts/garuda_14_regular.h>

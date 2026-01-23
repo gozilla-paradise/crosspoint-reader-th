@@ -170,6 +170,16 @@ float CrossPointSettings::getReaderLineCompression() const {
         case WIDE:
           return 1.0f;
       }
+    case CLOUDLOOP:
+      switch (lineSpacing) {
+        case TIGHT:
+          return 0.90f;
+        case NORMAL:
+        default:
+          return 0.95f;
+        case WIDE:
+          return 1.0f;
+      }
     case OPENDYSLEXIC:
       switch (lineSpacing) {
         case TIGHT:
@@ -265,6 +275,18 @@ int CrossPointSettings::getReaderFontId() const {
           return GARUDA_16_FONT_ID;
         case EXTRA_LARGE:
           return GARUDA_18_FONT_ID;
+      }
+    case CLOUDLOOP:
+      switch (fontSize) {
+        case SMALL:
+          return CLOUDLOOP_12_FONT_ID;
+        case MEDIUM:
+        default:
+          return CLOUDLOOP_14_FONT_ID;
+        case LARGE:
+          return CLOUDLOOP_16_FONT_ID;
+        case EXTRA_LARGE:
+          return CLOUDLOOP_18_FONT_ID;
       }
     case OPENDYSLEXIC:
       switch (fontSize) {

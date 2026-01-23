@@ -135,6 +135,18 @@ EpdFont garuda18RegularFont(&garuda_18_regular);
 EpdFont garuda18BoldFont(&garuda_18_bold);
 EpdFontFamily garuda18FontFamily(&garuda18RegularFont, &garuda18BoldFont);
 
+EpdFont cloudloop12RegularFont(&cloudloop_12_regular);
+EpdFontFamily cloudloop12FontFamily(&cloudloop12RegularFont);
+
+EpdFont cloudloop14RegularFont(&cloudloop_14_regular);
+EpdFontFamily cloudloop14FontFamily(&cloudloop14RegularFont);
+
+EpdFont cloudloop16RegularFont(&cloudloop_16_regular);
+EpdFontFamily cloudloop16FontFamily(&cloudloop16RegularFont);
+
+EpdFont cloudloop18RegularFont(&cloudloop_18_regular);
+EpdFontFamily cloudloop18FontFamily(&cloudloop18RegularFont);
+
 EpdFont opendyslexic8RegularFont(&opendyslexic_8_regular);
 EpdFont opendyslexic8BoldFont(&opendyslexic_8_bold);
 EpdFont opendyslexic8ItalicFont(&opendyslexic_8_italic);
@@ -313,6 +325,11 @@ void setupDisplayAndFonts() {
   renderer.insertFont(GARUDA_14_FONT_ID, garuda14FontFamily);
   renderer.insertFont(GARUDA_16_FONT_ID, garuda16FontFamily);
   renderer.insertFont(GARUDA_18_FONT_ID, garuda18FontFamily);
+
+  renderer.insertFont(CLOUDLOOP_12_FONT_ID, cloudloop12FontFamily);
+  renderer.insertFont(CLOUDLOOP_14_FONT_ID, cloudloop14FontFamily);
+  renderer.insertFont(CLOUDLOOP_16_FONT_ID, cloudloop16FontFamily);
+  renderer.insertFont(CLOUDLOOP_18_FONT_ID, cloudloop18FontFamily);
 
   renderer.insertFont(OPENDYSLEXIC_8_FONT_ID, opendyslexic8FontFamily);
   renderer.insertFont(OPENDYSLEXIC_10_FONT_ID, opendyslexic10FontFamily);
