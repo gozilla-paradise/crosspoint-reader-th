@@ -44,6 +44,15 @@
 #include <builtinFonts/notosansthai_18_regular.h>
 #include <builtinFonts/notosansthai_18_bold.h>
 
+#include <builtinFonts/sarabun_12_regular.h>
+#include <builtinFonts/sarabun_12_bold.h>
+#include <builtinFonts/sarabun_14_regular.h>
+#include <builtinFonts/sarabun_14_bold.h>
+#include <builtinFonts/sarabun_16_regular.h>
+#include <builtinFonts/sarabun_16_bold.h>
+#include <builtinFonts/sarabun_18_regular.h>
+#include <builtinFonts/sarabun_18_bold.h>
+
 #include <builtinFonts/cloudloop_12_regular.h>
 #include <builtinFonts/cloudloop_14_regular.h>
 #include <builtinFonts/cloudloop_16_regular.h>

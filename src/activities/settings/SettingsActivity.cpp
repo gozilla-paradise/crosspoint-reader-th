@@ -24,7 +24,7 @@ const SettingInfo displaySettings[displaySettingsCount] = {
 constexpr int readerSettingsCount = 9;
 const SettingInfo readerSettings[readerSettingsCount] = {
     SettingInfo::Enum("Font Family", &CrossPointSettings::fontFamily,
-        {"Bookerly", "Noto Sans", "Open Dyslexic", "Noto Sans Thai", "Garuda", "CloudLoop"}),
+        {"Bookerly", "Noto Sans", "Open Dyslexic", "Noto Sans Thai", "Garuda", "CloudLoop", "Sarabun"}),
     SettingInfo::Enum("Font Size", &CrossPointSettings::fontSize, {"Small", "Medium", "Large", "X Large"}),
     SettingInfo::Enum("Line Spacing", &CrossPointSettings::lineSpacing, {"Tight", "Normal", "Wide"}),
     SettingInfo::Value("Screen Margin", &CrossPointSettings::screenMargin, {5, 40, 5}),

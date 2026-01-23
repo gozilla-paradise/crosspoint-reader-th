@@ -117,7 +117,23 @@ EpdFontFamily notosansthai16FontFamily(&notosansthai16RegularFont, &notosansthai
 
 EpdFont notosansthai18RegularFont(&notosansthai_18_regular);
 EpdFont notosansthai18BoldFont(&notosansthai_18_bold);
-EpdFontFamily notosansthai18FontFamily(&notosansthai18RegularFont, &notosansthai18BoldFont);
+EpdFontFamily notosansthai18FontFamily(&notosansthai18RegularFont, &notosansthai18BoldFont);                  
+
+EpdFont sarabun12RegularFont(&sarabun_12_regular);
+EpdFont sarabun12BoldFont(&sarabun_12_bold);
+EpdFontFamily sarabun12FontFamily(&sarabun12RegularFont, &sarabun12BoldFont);
+
+EpdFont sarabun14RegularFont(&sarabun_14_regular);
+EpdFont sarabun14BoldFont(&sarabun_14_bold);
+EpdFontFamily sarabun14FontFamily(&sarabun14RegularFont, &sarabun14BoldFont);
+
+EpdFont sarabun16RegularFont(&sarabun_16_regular);
+EpdFont sarabun16BoldFont(&sarabun_16_bold);
+EpdFontFamily sarabun16FontFamily(&sarabun16RegularFont, &sarabun16BoldFont);
+
+EpdFont sarabun18RegularFont(&sarabun_18_regular);
+EpdFont sarabun18BoldFont(&sarabun_18_bold);
+EpdFontFamily sarabun18FontFamily(&sarabun18RegularFont, &sarabun18BoldFont);
 
 EpdFont garuda12RegularFont(&garuda_12_regular);
 EpdFont garuda12BoldFont(&garuda_12_bold);
@@ -315,6 +331,11 @@ void setupDisplayAndFonts() {
   renderer.insertFont(NOTOSANS_14_FONT_ID, notosansthai14FontFamily);
   renderer.insertFont(NOTOSANS_16_FONT_ID, notosansthai16FontFamily);
   renderer.insertFont(NOTOSANS_18_FONT_ID, notosansthai18FontFamily);
+
+  renderer.insertFont(SARABUN_12_FONT_ID, sarabun12FontFamily);
+  renderer.insertFont(SARABUN_14_FONT_ID, sarabun14FontFamily);
+  renderer.insertFont(SARABUN_16_FONT_ID, sarabun16FontFamily);
+  renderer.insertFont(SARABUN_18_FONT_ID, sarabun18FontFamily);
 
   renderer.insertFont(NOTOSANSTHAI_12_FONT_ID, notosansthai12FontFamily);
   renderer.insertFont(NOTOSANSTHAI_14_FONT_ID, notosansthai14FontFamily);
