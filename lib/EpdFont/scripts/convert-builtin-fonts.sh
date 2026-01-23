@@ -9,31 +9,31 @@ BOOKERLY_FONT_SIZES=(12 14 16 18)
 NOTOSANS_FONT_SIZES=(12 14 16 18)
 OPENDYSLEXIC_FONT_SIZES=(8 10 12 14)
 
-CLOUDLOOP_FONT_STYLE=("Regular")
-CLOUDLOOP_FONT_SIZES=(12 14 16 18)
+# CLOUDLOOP_FONT_STYLE=("Regular")
+# CLOUDLOOP_FONT_SIZES=(12 14 16 18)
 
-for size in ${CLOUDLOOP_FONT_SIZES[@]}; do
-  for style in ${CLOUDLOOP_FONT_STYLE[@]}; do
-    font_name="cloudloop_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
-    font_path="../builtinFonts/source/CloudLoop/CloudLoop-${style}.otf"
+# for size in ${CLOUDLOOP_FONT_SIZES[@]}; do
+#   for style in ${CLOUDLOOP_FONT_STYLE[@]}; do
+#     font_name="cloudloop_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
+#     font_path="../builtinFonts/source/CloudLoop/CloudLoop-${style}.otf"
+#     output_path="../builtinFonts/${font_name}.h"
+#     python fontconvert.py $font_name $size $font_path --2bit > $output_path
+#     echo "Generated $output_path"
+#   done
+# done
+
+GARUDA_FONT_STYLE=("Regular" "Bold")
+GARUDA_FONT_SIZES=(12 14 16 18)
+
+for size in ${GARUDA_FONT_SIZES[@]}; do
+  for style in ${GARUDA_FONT_STYLE[@]}; do
+    font_name="garuda_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
+    font_path="../builtinFonts/source/Garuda/Garuda-${style}.ttf"
     output_path="../builtinFonts/${font_name}.h"
     python fontconvert.py $font_name $size $font_path --2bit > $output_path
     echo "Generated $output_path"
   done
 done
-
-# GARUDA_FONT_STYLE=("Regular" "Bold")
-# GARUDA_FONT_SIZES=(12 14 16 18)
-
-# for size in ${GARUDA_FONT_SIZES[@]}; do
-#   for style in ${GARUDA_FONT_STYLE[@]}; do
-#     font_name="garuda_${size}_$(echo $style | tr '[:upper:]' '[:lower:]')"
-#     font_path="../builtinFonts/source/Garuda/Garuda-${style}.ttf"
-#     output_path="../builtinFonts/${font_name}.h"
-#     python fontconvert.py $font_name $size $font_path > $output_path
-#     echo "Generated $output_path"
-#   done
-# done
 
 # for size in ${BOOKERLY_FONT_SIZES[@]}; do
 #   for style in ${READER_FONT_STYLES[@]}; do
