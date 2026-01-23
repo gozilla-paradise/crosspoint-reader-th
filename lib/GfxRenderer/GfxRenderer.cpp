@@ -77,6 +77,11 @@ int GfxRenderer::getTextWidth(const int fontId, const char* text, const EpdFontF
     return 0;
   }
 
+  // Handle single space - return advance width instead of glyph bounding box (which is 0)
+  if (text != nullptr && text[0] == ' ' && text[1] == '\0') {
+    return getSpaceWidth(fontId);
+  }
+
   // Check if text contains Thai - use cluster-based width calculation
   if (text != nullptr && ThaiShaper::containsThai(text)) {
     return getThaiTextWidth(fontId, text, style);

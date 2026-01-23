@@ -74,60 +74,27 @@ uint16_t measureWordWidth(const GfxRenderer& renderer, const int fontId, const s
 }  // namespace
 
 void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle) {
-  if (word.empty()) return;
 
-#if PARSEDTEXT_THAI_VALIDATION
-  // Check input word BEFORE any processing
-  checkThaiWordCorruption(word, "ADDWORD_INPUT");
-#endif
+  if (word.empty()) return;
 
   // Check if word contains Thai text that needs segmentation
   if (ThaiShaper::containsThai(word.c_str())) {
-#if PARSEDTEXT_THAI_VALIDATION
-    // Save a copy of the original input to detect if it gets corrupted during segmentation
-    std::string originalCopy = word;
-#endif
-
     // Segment Thai text into individual words for proper line breaking
     auto segmentedWords = ThaiShaper::ThaiWordBreak::segmentWords(word.c_str());
 
-#if PARSEDTEXT_THAI_VALIDATION
-    // Check if the ORIGINAL INPUT was corrupted during segmentation
-    if (word != originalCopy) {
-      Serial.printf("[PTX] !! ORIGINAL_CORRUPTED during segmentWords! len=%u\n", (uint32_t)word.size());
-      checkThaiWordCorruption(word, "ORIGINAL_AFTER_SEG");
-    }
-#endif
+    for (size_t i = 0; i < segmentedWords.size(); ++i) {
+      auto& segment = segmentedWords[i];
+      if (segment.empty()) continue;
 
-    // Check if the previous word was Thai - if so, this Thai word should connect
-    // without spacing even if they came from separate addWord calls (due to HTML whitespace)
-    // Exception: don't merge after Thai punctuation marks (ๆ, ฯ) which act as word boundaries
-    bool prevWordWasThai = false;
-    if (!words.empty() && ThaiShaper::containsThai(words.back().c_str())) {
-      const std::string& prev = words.back();
-      // Check if previous word IS or ENDS WITH Thai punctuation
-      // ๆ (U+0E46) and ฯ (U+0E2F) act as word boundaries
-      static const char MAIYAMOK[] = "\xE0\xB9\x86";    // ๆ
-      static const char PAIYANNOI[] = "\xE0\xB8\xAF";   // ฯ
-      bool endsWithThaiPunct = (prev == MAIYAMOK || prev == PAIYANNOI ||
-                                (prev.size() >= 3 &&
-                                 (prev.compare(prev.size() - 3, 3, MAIYAMOK) == 0 ||
-                                  prev.compare(prev.size() - 3, 3, PAIYANNOI) == 0)));
-      prevWordWasThai = !endsWithThaiPunct;
-    }
+      bool isLast = (i + 1 == segmentedWords.size());
 
-    bool isFirst = true;
-    for (auto& segment : segmentedWords) {
-      if (!segment.empty()) {
-#if PARSEDTEXT_THAI_VALIDATION
-        // Check each segment AFTER Thai segmentation
-        checkThaiWordCorruption(segment, "AFTER_SEGMENT");
-#endif
-        words.push_back(std::move(segment));
+      words.push_back(std::move(segment));
+      wordStyles.push_back(fontStyle);
+      wordNoSpaceBefore.push_back(true);
+      if (isLast) {
+        words.push_back(std::string(" "));
         wordStyles.push_back(fontStyle);
-        // No space before Thai cluster continuations, OR if previous word was Thai
-        wordNoSpaceBefore.push_back(!isFirst || prevWordWasThai);
-        isFirst = false;
+        wordNoSpaceBefore.push_back(true);
       }
     }
     return;
@@ -470,12 +437,9 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
   std::advance(noSpaceIt, lastBreakAt);
   for (size_t i = lastBreakAt; i < lineBreak; i++) {
     const uint16_t currentWordWidth = wordWidths[i];
-    // Add spacing BEFORE this word if: not first word AND noSpaceBefore is false
-    if (i != lastBreakAt && !*noSpaceIt) {
-      xpos += spacing;
-    }
     lineXPos.push_back(xpos);
-    xpos += currentWordWidth;
+    const bool skipSpacing = (i == lastBreakAt) || *noSpaceIt;
+    xpos += currentWordWidth + (skipSpacing ? 0 : spacing);
     ++noSpaceIt;
   }
 
@@ -500,13 +464,6 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
       stripSoftHyphensInPlace(word);
     }
   }
-
-#if PARSEDTEXT_THAI_VALIDATION
-  // Check all words just before TextBlock creation
-  for (const auto& word : lineWords) {
-    checkThaiWordCorruption(word, "BEFORE_TEXTBLOCK");
-  }
-#endif
 
   processLine(std::make_shared<TextBlock>(std::move(lineWords), std::move(lineXPos), std::move(lineWordStyles), style));
 }
