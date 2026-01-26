@@ -102,7 +102,11 @@ void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle)
 
   words.push_back(std::move(word));
   wordStyles.push_back(fontStyle);
-  wordNoSpaceBefore.push_back(false);  // Normal words have space before
+  wordNoSpaceBefore.push_back(true);  // Normal words have space before
+
+  words.push_back(std::string(" "));
+  wordStyles.push_back(fontStyle);
+  wordNoSpaceBefore.push_back(true);
 }
 
 // Consumes data to minimize memory usage
