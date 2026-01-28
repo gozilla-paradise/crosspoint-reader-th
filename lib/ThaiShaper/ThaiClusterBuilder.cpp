@@ -266,8 +266,9 @@ done_parsing:
       PositionedGlyph toneGlyph;
       toneGlyph.codepoint = toneMark;
       toneGlyph.xOffset = hasAscender ? ThaiOffset::ASCENDER_X_SHIFT : 0;
-      // Tone mark goes above above-vowel if present, otherwise just above base
-      toneGlyph.yOffset = aboveVowel != 0 ? ThaiOffset::TONE_MARK : ThaiOffset::TONE_MARK_ALONE;
+      // Tone mark goes above above-vowel if present, above nikkhahit if sara am present,
+      // otherwise just above base
+      toneGlyph.yOffset = (aboveVowel != 0 || followVowel == 0x0E33) ? ThaiOffset::TONE_MARK : ThaiOffset::TONE_MARK_ALONE;
       toneGlyph.zeroAdvance = true;
       cluster.glyphs.push_back(toneGlyph);
     }
@@ -287,6 +288,33 @@ done_parsing:
       }
       thanGlyph.zeroAdvance = true;
       cluster.glyphs.push_back(thanGlyph);
+    }
+
+    // 6.5. Handle sara am decomposition when above marks are present
+    // Sara am (ำ = ํ + า) must be decomposed so nikkhahit stacks properly
+    // Stacking order (top to bottom): tone mark -> nikkhahit -> above vowel -> base
+    if (followVowel == 0x0E33 && (toneMark != 0 || aboveVowel != 0)) {
+      // Add nikkhahit (ํ) - position depends on what's above
+      PositionedGlyph nikhahitGlyph;
+      nikhahitGlyph.codepoint = 0x0E4D;  // nikkhahit
+      nikhahitGlyph.xOffset = hasAscender ? ThaiOffset::ASCENDER_X_SHIFT : 0;
+      // Nikkhahit goes below tone mark but above base/above-vowel
+      if (toneMark != 0 && aboveVowel != 0) {
+        // Both tone mark and above vowel: nikkhahit between them
+        // Tone mark at -4, nikkhahit at -2, above vowel at its position
+        nikhahitGlyph.yOffset = ThaiOffset::ABOVE_VOWEL;  // -2, same level as above vowel
+      } else if (toneMark != 0) {
+        // Only tone mark (at -4): nikkhahit below it at -2
+        nikhahitGlyph.yOffset = ThaiOffset::ABOVE_VOWEL;  // -2
+      } else {
+        // Only above vowel (at -2): nikkhahit above it at -4
+        nikhahitGlyph.yOffset = ThaiOffset::TONE_MARK;  // -4
+      }
+      nikhahitGlyph.zeroAdvance = true;
+      cluster.glyphs.push_back(nikhahitGlyph);
+
+      // Change follow vowel to sara aa (the remainder of decomposition)
+      followVowel = 0x0E32;  // sara aa
     }
   }
 
