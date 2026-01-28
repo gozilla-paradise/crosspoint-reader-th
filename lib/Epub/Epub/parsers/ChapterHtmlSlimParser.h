@@ -12,7 +12,7 @@
 class Page;
 class GfxRenderer;
 
-#define MAX_WORD_SIZE 200
+#define MAX_WORD_SIZE 10000
 
 class ChapterHtmlSlimParser {
   const std::string& filepath;

@@ -3,6 +3,12 @@
 #include <ThaiShaper.h>
 #include <Utf8.h>
 
+// Sarabun font IDs for font-specific Thai mark positioning
+#define SARABUN_12_FONT_ID (12033332)
+#define SARABUN_14_FONT_ID (-890342898)
+#define SARABUN_16_FONT_ID (243925181)
+#define SARABUN_18_FONT_ID (303221332)
+
 // Debug logging for Thai rendering investigation
 // Set to 1 to enable verbose Thai rendering logging
 #define THAI_RENDER_DEBUG_LOGGING 0
@@ -75,6 +81,11 @@ int GfxRenderer::getTextWidth(const int fontId, const char* text, const EpdFontF
   if (fontMap.count(fontId) == 0) {
     Serial.printf("[%lu] [GFX] Font %d not found\n", millis(), fontId);
     return 0;
+  }
+
+  // Handle single space - return advance width instead of glyph bounding box (which is 0)
+  if (text != nullptr && text[0] == ' ' && text[1] == '\0') {
+    return getSpaceWidth(fontId);
   }
 
   // Check if text contains Thai - use cluster-based width calculation
@@ -246,15 +257,16 @@ void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, con
     if (screenY >= getScreenHeight()) {
       break;
     }
-    if (screenY < 0) {
-      continue;
-    }
 
     if (bitmap.readNextRow(outputRow, rowBytes) != BmpReaderError::Ok) {
       Serial.printf("[%lu] [GFX] Failed to read row %d from bitmap\n", millis(), bmpY);
       free(outputRow);
       free(rowBytes);
       return;
+    }
+
+    if (screenY < 0) {
+      continue;
     }
 
     if (bmpY < cropPixY) {
@@ -889,21 +901,26 @@ void GfxRenderer::drawThaiText(const int fontId, const int x, const int y, const
 
   // Render each cluster
   for (const auto& cluster : clusters) {
-    renderThaiCluster(font, cluster, &xpos, yPos, black, style);
+    renderThaiCluster(font, cluster, &xpos, yPos, black, style, fontId);
   }
 }
 
 void GfxRenderer::renderThaiCluster(const EpdFontFamily& fontFamily, const ThaiShaper::ThaiCluster& cluster, int* x,
-                                    const int y, const bool pixelState, const EpdFontFamily::Style style) const {
+                                    const int y, const bool pixelState, const EpdFontFamily::Style style,
+                                    const int fontId) const {
   const EpdFontData* fontData = fontFamily.getData(style);
   if (!fontData) {
     return;
   }
 
-  // Calculate scale factor for y-offsets based on font size
-  // Thai offset values are designed for typical font metrics
+  // Scale factor for stacked marks (tone mark above vowel)
+  // Only applied when yOffset < -2, indicating stacking is needed
   const int fontHeight = fontData->advanceY;
-  const float yScale = fontHeight / 16.0f;  // Normalize to ~16pt reference
+
+  // Sarabun font needs different scaling than other fonts
+  const bool isSarabun = (fontId == SARABUN_12_FONT_ID || fontId == SARABUN_14_FONT_ID ||
+                          fontId == SARABUN_16_FONT_ID || fontId == SARABUN_18_FONT_ID);
+  const float yScale = fontHeight / (isSarabun ? 16.0f : 26.0f);
 
   // Track the maximum advance for this cluster (for non-combining glyphs)
   int clusterAdvance = 0;
@@ -951,8 +968,14 @@ void GfxRenderer::renderThaiCluster(const EpdFontFamily& fontFamily, const ThaiS
       glyphX = *x + glyph.xOffset;
     }
 
-    // Calculate y offset (scaled by font size)
-    const int yOffset = static_cast<int>(glyph.yOffset * yScale);
+    // Calculate y offset - only apply scaling for stacked marks
+    // yOffset < -2 means tone mark needs to stack above a vowel
+    // yOffset >= -2 (vowels, tone marks alone, below marks) use font's built-in positioning
+    int yOffset = 0;
+    if (glyph.yOffset < -2) {
+      // Stacked tone mark - apply scaled offset to clear the vowel below
+      yOffset = static_cast<int>(glyph.yOffset * yScale);
+    }
     const int glyphY = y + yOffset;
 
     const uint8_t* bitmap = &fontData->bitmap[offset];

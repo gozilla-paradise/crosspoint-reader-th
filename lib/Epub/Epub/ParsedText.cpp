@@ -74,42 +74,27 @@ uint16_t measureWordWidth(const GfxRenderer& renderer, const int fontId, const s
 }  // namespace
 
 void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle) {
-  if (word.empty()) return;
 
-#if PARSEDTEXT_THAI_VALIDATION
-  // Check input word BEFORE any processing
-  checkThaiWordCorruption(word, "ADDWORD_INPUT");
-#endif
+  if (word.empty()) return;
 
   // Check if word contains Thai text that needs segmentation
   if (ThaiShaper::containsThai(word.c_str())) {
-#if PARSEDTEXT_THAI_VALIDATION
-    // Save a copy of the original input to detect if it gets corrupted during segmentation
-    std::string originalCopy = word;
-#endif
-
     // Segment Thai text into individual words for proper line breaking
     auto segmentedWords = ThaiShaper::ThaiWordBreak::segmentWords(word.c_str());
 
-#if PARSEDTEXT_THAI_VALIDATION
-    // Check if the ORIGINAL INPUT was corrupted during segmentation
-    if (word != originalCopy) {
-      Serial.printf("[PTX] !! ORIGINAL_CORRUPTED during segmentWords! len=%u\n", (uint32_t)word.size());
-      checkThaiWordCorruption(word, "ORIGINAL_AFTER_SEG");
-    }
-#endif
+    for (size_t i = 0; i < segmentedWords.size(); ++i) {
+      auto& segment = segmentedWords[i];
+      if (segment.empty()) continue;
 
-    bool isFirst = true;
-    for (auto& segment : segmentedWords) {
-      if (!segment.empty()) {
-#if PARSEDTEXT_THAI_VALIDATION
-        // Check each segment AFTER Thai segmentation
-        checkThaiWordCorruption(segment, "AFTER_SEGMENT");
-#endif
-        words.push_back(std::move(segment));
+      bool isLast = (i + 1 == segmentedWords.size());
+
+      words.push_back(std::move(segment));
+      wordStyles.push_back(fontStyle);
+      wordNoSpaceBefore.push_back(true);
+      if (isLast) {
+        words.push_back(std::string(" "));
         wordStyles.push_back(fontStyle);
-        wordNoSpaceBefore.push_back(!isFirst);  // No space before Thai cluster continuations
-        isFirst = false;
+        wordNoSpaceBefore.push_back(true);
       }
     }
     return;
@@ -117,7 +102,11 @@ void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle)
 
   words.push_back(std::move(word));
   wordStyles.push_back(fontStyle);
-  wordNoSpaceBefore.push_back(false);  // Normal words have space before
+  wordNoSpaceBefore.push_back(true);  // Normal words have space before
+
+  words.push_back(std::string(" "));
+  wordStyles.push_back(fontStyle);
+  wordNoSpaceBefore.push_back(true);
 }
 
 // Consumes data to minimize memory usage
@@ -479,13 +468,6 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
       stripSoftHyphensInPlace(word);
     }
   }
-
-#if PARSEDTEXT_THAI_VALIDATION
-  // Check all words just before TextBlock creation
-  for (const auto& word : lineWords) {
-    checkThaiWordCorruption(word, "BEFORE_TEXTBLOCK");
-  }
-#endif
 
   processLine(std::make_shared<TextBlock>(std::move(lineWords), std::move(lineXPos), std::move(lineWordStyles), style));
 }

@@ -160,6 +160,36 @@ float CrossPointSettings::getReaderLineCompression() const {
         case WIDE:
           return 1.0f;
       }
+    case GARUDA:
+      switch (lineSpacing) {
+        case TIGHT:
+          return 0.90f;
+        case NORMAL:
+        default:
+          return 0.95f;
+        case WIDE:
+          return 1.0f;
+      }
+    case CLOUDLOOP:
+      switch (lineSpacing) {
+        case TIGHT:
+          return 0.90f;
+        case NORMAL:
+        default:
+          return 0.95f;
+        case WIDE:
+          return 1.0f;
+      }
+    case SARABUN:
+      switch (lineSpacing) {
+        case TIGHT:
+          return 1.2f;
+        case NORMAL:
+        default:
+          return 1.25f;
+        case WIDE:
+          return 1.3f;
+      }
     case OPENDYSLEXIC:
       switch (lineSpacing) {
         case TIGHT:
@@ -223,14 +253,14 @@ int CrossPointSettings::getReaderFontId() const {
     case NOTOSANS:
       switch (fontSize) {
         case SMALL:
-          return NOTOSANS_12_FONT_ID;
+          return NOTOSANSTHAI_12_FONT_ID;
         case MEDIUM:
         default:
-          return NOTOSANS_14_FONT_ID;
+          return NOTOSANSTHAI_14_FONT_ID;
         case LARGE:
-          return NOTOSANS_16_FONT_ID;
+          return NOTOSANSTHAI_16_FONT_ID;
         case EXTRA_LARGE:
-          return NOTOSANS_18_FONT_ID;
+          return NOTOSANSTHAI_18_FONT_ID;
       }
     case NOTOSANSTHAI:
       switch (fontSize) {
@@ -243,6 +273,42 @@ int CrossPointSettings::getReaderFontId() const {
           return NOTOSANSTHAI_16_FONT_ID;
         case EXTRA_LARGE:
           return NOTOSANSTHAI_18_FONT_ID;
+      }
+    case GARUDA:
+      switch (fontSize) {
+        case SMALL:
+          return GARUDA_12_FONT_ID;
+        case MEDIUM:
+        default:
+          return GARUDA_14_FONT_ID;
+        case LARGE:
+          return GARUDA_16_FONT_ID;
+        case EXTRA_LARGE:
+          return GARUDA_18_FONT_ID;
+      }
+    case CLOUDLOOP:
+      switch (fontSize) {
+        case SMALL:
+          return CLOUDLOOP_12_FONT_ID;
+        case MEDIUM:
+        default:
+          return CLOUDLOOP_14_FONT_ID;
+        case LARGE:
+          return CLOUDLOOP_16_FONT_ID;
+        case EXTRA_LARGE:
+          return CLOUDLOOP_18_FONT_ID;
+      }
+    case SARABUN:
+      switch (fontSize) {
+        case SMALL:
+          return SARABUN_12_FONT_ID;
+        case MEDIUM:
+        default:
+          return SARABUN_14_FONT_ID;
+        case LARGE:
+          return SARABUN_16_FONT_ID;
+        case EXTRA_LARGE:
+          return SARABUN_18_FONT_ID;
       }
     case OPENDYSLEXIC:
       switch (fontSize) {

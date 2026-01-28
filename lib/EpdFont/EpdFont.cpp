@@ -48,6 +48,11 @@ void EpdFont::getTextDimensions(const char* string, int* w, int* h) const {
 }
 
 bool EpdFont::hasPrintableChars(const char* string) const {
+  // Allow single space character (it has advanceX but no visible glyph)
+  if (string[0] == ' ' && string[1] == '\0') {
+    return true;
+  }
+
   int w = 0, h = 0;
 
   getTextDimensions(string, &w, &h);
