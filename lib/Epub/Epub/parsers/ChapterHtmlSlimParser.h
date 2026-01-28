@@ -39,6 +39,7 @@ class ChapterHtmlSlimParser {
   bool hyphenationEnabled;
 
   void startNewTextBlock(TextBlock::Style style);
+  void flushPartWordBuffer();
   void makePages();
   // Helper to flush partWordBuffer while preserving incomplete UTF-8 sequences
   static void flushPartWordBuffer(ChapterHtmlSlimParser* self, EpdFontFamily::Style fontStyle);

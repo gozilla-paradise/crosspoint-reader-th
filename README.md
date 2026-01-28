@@ -45,7 +45,9 @@ This project is **not affiliated with Xteink**; it's built as a community fork.
   - [x] Built-in NotoSansThai font
   - [x] Thai punctuation and spacing handling
 
-See [the user guide](./USER_GUIDE.md) for instructions on operating CrossPoint.
+Multi-language support: Read EPUBs in various languages, including English, Spanish, French, German, Italian, Portuguese, Russian, Ukrainian, Polish, Swedish, Norwegian, [and more](./USER_GUIDE.md#supported-languages).
+
+See [the user guide](./USER_GUIDE.md) for instructions on operating CrossPoint. 
 
 ## Installing
 
