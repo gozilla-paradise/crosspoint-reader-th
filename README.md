@@ -1,7 +1,9 @@
 # CrossPoint Reader TH
 
 ## สำหรับท่านที่ต้องการสนับสนุนการทำ Firmware ภาษาไทยนี้ต่อไป สามารถสนับสนุนเลี้ยงกาแฟได้ที่ โดยตกเฉลี่ยๆ 5$ ต่อเดือน ขอบคุณมากครับ
-https://www.patreon.com/13080975/join
+> https://www.patreon.com/13080975/join
+
+-------------------
 
 Thai language fork of [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) — firmware for the **Xteink X4** e-paper display reader (unaffiliated with Xteink).
 Built using **PlatformIO** and targeting the **ESP32-C3** microcontroller.
