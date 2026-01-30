@@ -3,6 +3,8 @@
 ## สำหรับท่านที่ต้องการสนับสนุนการทำ Firmware ภาษาไทยนี้ต่อไป สามารถสนับสนุนเลี้ยงกาแฟได้ที่ โดยตกเฉลี่ยๆ 5$ ต่อเดือน ขอบคุณมากครับ
 > https://www.patreon.com/13080975/join
 
+## สิ่งที่ได้รับคือ สามารถดาวน์โหลด Firmware Bleeding Edge ใหม่ล่าสุด รวมถึงเครื่องมือใหม่ๆ ก่อนใคร
+
 -------------------
 
 Thai language fork of [CrossPoint Reader](https://github.com/daveallie/crosspoint-reader) — firmware for the **Xteink X4** e-paper display reader (unaffiliated with Xteink).
