@@ -35,7 +35,7 @@ const SettingInfo displaySettings[displaySettingsCount] = {
     SettingInfo::Toggle("Sunlight Fading Fix", &CrossPointSettings::fadingFix),
 };
 
-constexpr int readerSettingsCount = 9;
+constexpr int readerSettingsCount = 10;
 const SettingInfo readerSettings[readerSettingsCount] = {
     SettingInfo::Enum("Font Family", &CrossPointSettings::fontFamily,
         {"Bookerly", "Noto Sans", "Open Dyslexic", "Noto Sans Thai", "Garuda", "CloudLoop", "Sarabun"}),
@@ -43,7 +43,8 @@ const SettingInfo readerSettings[readerSettingsCount] = {
     SettingInfo::Enum("Line Spacing", &CrossPointSettings::lineSpacing, {"Tight", "Normal", "Wide"}),
     SettingInfo::Value("Screen Margin", &CrossPointSettings::screenMargin, {5, 40, 5}),
     SettingInfo::Enum("Paragraph Alignment", &CrossPointSettings::paragraphAlignment,
-        {"Justify", "Left", "Center", "Right"}),
+                      {"Justify", "Left", "Center", "Right", "Book's Style"}),
+    SettingInfo::Toggle("Embedded Style", &CrossPointSettings::embeddedStyle),
     SettingInfo::Toggle("Hyphenation", &CrossPointSettings::hyphenationEnabled),
     SettingInfo::Enum("Reading Orientation", &CrossPointSettings::orientation,
                       {"Portrait", "Landscape CW", "Inverted", "Landscape CCW"}),
