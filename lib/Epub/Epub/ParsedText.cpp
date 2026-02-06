@@ -20,6 +20,38 @@ namespace {
 constexpr char SOFT_HYPHEN_UTF8[] = "\xC2\xAD";
 constexpr size_t SOFT_HYPHEN_BYTES = 2;
 
+// Known attaching punctuation (including UTF-8 sequences)
+const std::vector<std::string> punctuation = {
+    ".",
+    ",",
+    "!",
+    "?",
+    ";",
+    ":",
+    "\"",
+    "'",
+    "\xE2\x80\x99",  // ' (U+2019 right single quote)
+    "\xE2\x80\x9D"   // " (U+201D right double quote)
+};
+
+bool isAttachingPunctuationWord(const std::string& word) {
+  if (word.empty()) return false;
+
+  size_t pos = 0;
+  while (pos < word.size()) {
+    bool matched = false;
+    for (const auto& p : punctuation) {
+      if (word.compare(pos, p.size(), p) == 0) {
+        pos += p.size();
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) return false;
+  }
+  return true;
+}
+
 bool containsSoftHyphen(const std::string& word) { return word.find(SOFT_HYPHEN_UTF8) != std::string::npos; }
 
 // Removes every soft hyphen in-place so rendered glyphs match measured widths.
@@ -50,14 +82,18 @@ uint16_t measureWordWidth(const GfxRenderer& renderer, const int fontId, const s
 
 }  // namespace
 
-void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle) {
-
+void ParsedText::addWord(std::string word, const EpdFontFamily::Style style, const bool underline) {
   if (word.empty()) return;
 
   // Check if word contains Thai text that needs segmentation
   if (ThaiShaper::containsThai(word.c_str())) {
     // Segment Thai text into individual words for proper line breaking
     auto segmentedWords = ThaiShaper::ThaiWordBreak::segmentWords(word.c_str());
+
+    EpdFontFamily::Style combinedStyle = style;
+    if (underline) {
+      combinedStyle = static_cast<EpdFontFamily::Style>(combinedStyle | EpdFontFamily::UNDERLINE);
+    }
 
     for (size_t i = 0; i < segmentedWords.size(); ++i) {
       auto& segment = segmentedWords[i];
@@ -66,11 +102,11 @@ void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle)
       bool isLast = (i + 1 == segmentedWords.size());
 
       words.push_back(std::move(segment));
-      wordStyles.push_back(fontStyle);
+      wordStyles.push_back(combinedStyle);
       wordNoSpaceBefore.push_back(true);
       if (isLast) {
-        words.push_back(std::string(" "));
-        wordStyles.push_back(fontStyle);
+        words.push_back(std::string("  "));
+        wordStyles.push_back(combinedStyle);
         wordNoSpaceBefore.push_back(true);
       }
     }
@@ -78,7 +114,11 @@ void ParsedText::addWord(std::string word, const EpdFontFamily::Style fontStyle)
   }
 
   words.push_back(std::move(word));
-  wordStyles.push_back(fontStyle);
+  EpdFontFamily::Style combinedStyle = style;
+  if (underline) {
+    combinedStyle = static_cast<EpdFontFamily::Style>(combinedStyle | EpdFontFamily::UNDERLINE);
+  }
+  wordStyles.push_back(combinedStyle);
   wordNoSpaceBefore.push_back(false);
 }
 
@@ -129,197 +169,134 @@ std::vector<uint16_t> ParsedText::calculateWordWidths(const GfxRenderer& rendere
   return wordWidths;
 }
 
+// Helper: detect whether any word in the current text contains Thai characters.
+bool ParsedText::containsThaiText() const {
+  for (const auto& word : words) {
+    if (ThaiShaper::containsThai(word.c_str())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::vector<size_t> ParsedText::computeLineBreaks(const GfxRenderer& renderer, const int fontId, const int pageWidth,
                                                   const int spaceWidth, std::vector<uint16_t>& wordWidths) {
   if (words.empty()) {
     return {};
   }
 
-  bool hasThai = false;
-  for (const auto& word : words) {
-    if (ThaiShaper::containsThai(word.c_str())) {
-      hasThai = true;
-      break;
+  const bool hasThai = containsThaiText();
+
+  // Calculate first line indent (only for left/justified text without extra paragraph spacing)
+  const int firstLineIndent =
+      blockStyle.textIndent > 0 && !extraParagraphSpacing &&
+              (blockStyle.alignment == CssTextAlign::Justify || blockStyle.alignment == CssTextAlign::Left)
+          ? blockStyle.textIndent
+          : 0;
+
+  // Ensure any word that would overflow even as the first entry on a line is split using fallback hyphenation.
+  for (size_t i = 0; i < wordWidths.size(); ++i) {
+    const int effectiveWidth = i == 0 ? pageWidth - firstLineIndent : pageWidth;
+    while (wordWidths[i] > effectiveWidth) {
+      if (!hyphenateWordAtIndex(i, effectiveWidth, renderer, fontId, wordWidths, /*allowFallbackBreaks=*/true)) {
+        break;
+      }
     }
   }
 
+  const size_t totalWordCount = words.size();
+
+  // For Thai text, build a random-access copy of wordNoSpaceBefore for the DP inner loop.
+  std::vector<bool> noSpaceBeforeVec;
   if (hasThai) {
-    // Ensure any word that would overflow even as the first entry on a line is split using fallback hyphenation.
-    for (size_t i = 0; i < wordWidths.size(); ++i) {
-      while (wordWidths[i] > pageWidth) {
-        if (!hyphenateWordAtIndex(i, pageWidth, renderer, fontId, wordWidths, /*allowFallbackBreaks=*/true)) {
-          break;
-        }
-      }
-    }
+    noSpaceBeforeVec.assign(wordNoSpaceBefore.begin(), wordNoSpaceBefore.end());
+  }
 
-    const size_t totalWordCount = words.size();
+  // DP table to store the minimum badness (cost) of lines starting at index i
+  std::vector<int> dp(totalWordCount);
+  // 'ans[i]' stores the index 'j' of the *last word* in the optimal line starting at 'i'
+  std::vector<size_t> ans(totalWordCount);
 
-    // Create vector copy of wordNoSpaceBefore for efficient random access
-    std::vector<bool> noSpaceBeforeVec(wordNoSpaceBefore.begin(), wordNoSpaceBefore.end());
+  // Base Case
+  dp[totalWordCount - 1] = 0;
+  ans[totalWordCount - 1] = totalWordCount - 1;
 
-    // DP table to store the minimum badness (cost) of lines starting at index i
-    std::vector<int> dp(totalWordCount);
-    // 'ans[i]' stores the index 'j' of the *last word* in the optimal line starting at 'i'
-    std::vector<size_t> ans(totalWordCount);
+  for (int i = totalWordCount - 2; i >= 0; --i) {
+    dp[i] = MAX_COST;
 
-    // Base Case
-    dp[totalWordCount - 1] = 0;
-    ans[totalWordCount - 1] = totalWordCount - 1;
+    // First line has reduced width due to text-indent
+    const int effectivePageWidth = i == 0 ? pageWidth - firstLineIndent : pageWidth;
 
-    for (int i = totalWordCount - 2; i >= 0; --i) {
-      int currlen = 0;
-      dp[i] = MAX_COST;
+    // For non-Thai text, initialise currlen so the first iteration cancels the leading space.
+    // For Thai text, start at 0 and decide per-word whether to add spacing.
+    int currlen = hasThai ? 0 : -spaceWidth;
 
-      for (size_t j = i; j < totalWordCount; ++j) {
-        // Current line length: previous width + space (if applicable) + current word width
+    for (size_t j = i; j < totalWordCount; ++j) {
+      if (hasThai) {
+        // Thai: only add space when the word is not marked as no-space-before and is not the first on the line.
         const int thisSpacing = (j == static_cast<size_t>(i) || noSpaceBeforeVec[j]) ? 0 : spaceWidth;
         currlen += wordWidths[j] + thisSpacing;
-
-        if (currlen > pageWidth) {
-          break;
-        }
-
-        int cost;
-        if (j == totalWordCount - 1) {
-          cost = 0;  // Last line
-        } else {
-          const int remainingSpace = pageWidth - currlen;
-          // Use long long for the square to prevent overflow
-          const long long cost_ll = static_cast<long long>(remainingSpace) * remainingSpace + dp[j + 1];
-
-          if (cost_ll > MAX_COST) {
-            cost = MAX_COST;
-          } else {
-            cost = static_cast<int>(cost_ll);
-          }
-        }
-
-        if (cost < dp[i]) {
-          dp[i] = cost;
-          ans[i] = j;  // j is the index of the last word in this optimal line
-        }
-      }
-
-      // Handle oversized word: if no valid configuration found, force single-word line
-      // This prevents cascade failure where one oversized word breaks all preceding words
-      if (dp[i] == MAX_COST) {
-        ans[i] = i;  // Just this word on its own line
-        // Inherit cost from next word to allow subsequent words to find valid configurations
-        if (i + 1 < static_cast<int>(totalWordCount)) {
-          dp[i] = dp[i + 1];
-        } else {
-          dp[i] = 0;
-        }
-      }
-    }
-
-    // Stores the index of the word that starts the next line (last_word_index + 1)
-    std::vector<size_t> lineBreakIndices;
-    size_t currentWordIndex = 0;
-
-    while (currentWordIndex < totalWordCount) {
-      size_t nextBreakIndex = ans[currentWordIndex] + 1;
-
-      // Safety check: prevent infinite loop if nextBreakIndex doesn't advance
-      if (nextBreakIndex <= currentWordIndex) {
-        // Force advance by at least one word to avoid infinite loop
-        nextBreakIndex = currentWordIndex + 1;
-      }
-
-      lineBreakIndices.push_back(nextBreakIndex);
-      currentWordIndex = nextBreakIndex;
-    }
-
-    return lineBreakIndices;
-  } else {
-    // Ensure any word that would overflow even as the first entry on a line is split using fallback hyphenation.
-    for (size_t i = 0; i < wordWidths.size(); ++i) {
-      while (wordWidths[i] > pageWidth) {
-        if (!hyphenateWordAtIndex(i, pageWidth, renderer, fontId, wordWidths, /*allowFallbackBreaks=*/true)) {
-          break;
-        }
-      }
-    }
-
-    const size_t totalWordCount = words.size();
-
-    // DP table to store the minimum badness (cost) of lines starting at index i
-    std::vector<int> dp(totalWordCount);
-    // 'ans[i]' stores the index 'j' of the *last word* in the optimal line starting at 'i'
-    std::vector<size_t> ans(totalWordCount);
-
-    // Base Case
-    dp[totalWordCount - 1] = 0;
-    ans[totalWordCount - 1] = totalWordCount - 1;
-
-    for (int i = totalWordCount - 2; i >= 0; --i) {
-      int currlen = -spaceWidth;
-      dp[i] = MAX_COST;
-
-      for (size_t j = i; j < totalWordCount; ++j) {
-        // Current line length: previous width + space + current word width
+      } else {
+        // Non-Thai: every word gets a leading space (the first is cancelled by the -spaceWidth init).
         currlen += wordWidths[j] + spaceWidth;
+      }
 
-        if (currlen > pageWidth) {
-          break;
-        }
+      if (currlen > effectivePageWidth) {
+        break;
+      }
 
-        int cost;
-        if (j == totalWordCount - 1) {
-          cost = 0;  // Last line
+      int cost;
+      if (j == totalWordCount - 1) {
+        cost = 0;  // Last line
+      } else {
+        const int remainingSpace = effectivePageWidth - currlen;
+        // Use long long for the square to prevent overflow
+        const long long cost_ll = static_cast<long long>(remainingSpace) * remainingSpace + dp[j + 1];
+
+        if (cost_ll > MAX_COST) {
+          cost = MAX_COST;
         } else {
-          const int remainingSpace = pageWidth - currlen;
-          // Use long long for the square to prevent overflow
-          const long long cost_ll = static_cast<long long>(remainingSpace) * remainingSpace + dp[j + 1];
-
-          if (cost_ll > MAX_COST) {
-            cost = MAX_COST;
-          } else {
-            cost = static_cast<int>(cost_ll);
-          }
-        }
-
-        if (cost < dp[i]) {
-          dp[i] = cost;
-          ans[i] = j;  // j is the index of the last word in this optimal line
+          cost = static_cast<int>(cost_ll);
         }
       }
 
-      // Handle oversized word: if no valid configuration found, force single-word line
-      // This prevents cascade failure where one oversized word breaks all preceding words
-      if (dp[i] == MAX_COST) {
-        ans[i] = i;  // Just this word on its own line
-        // Inherit cost from next word to allow subsequent words to find valid configurations
-        if (i + 1 < static_cast<int>(totalWordCount)) {
-          dp[i] = dp[i + 1];
-        } else {
-          dp[i] = 0;
-        }
+      if (cost < dp[i]) {
+        dp[i] = cost;
+        ans[i] = j;  // j is the index of the last word in this optimal line
       }
     }
 
-    // Stores the index of the word that starts the next line (last_word_index + 1)
-    std::vector<size_t> lineBreakIndices;
-    size_t currentWordIndex = 0;
-
-    while (currentWordIndex < totalWordCount) {
-      size_t nextBreakIndex = ans[currentWordIndex] + 1;
-
-      // Safety check: prevent infinite loop if nextBreakIndex doesn't advance
-      if (nextBreakIndex <= currentWordIndex) {
-        // Force advance by at least one word to avoid infinite loop
-        nextBreakIndex = currentWordIndex + 1;
+    // Handle oversized word: if no valid configuration found, force single-word line
+    // This prevents cascade failure where one oversized word breaks all preceding words
+    if (dp[i] == MAX_COST) {
+      ans[i] = i;  // Just this word on its own line
+      // Inherit cost from next word to allow subsequent words to find valid configurations
+      if (i + 1 < static_cast<int>(totalWordCount)) {
+        dp[i] = dp[i + 1];
+      } else {
+        dp[i] = 0;
       }
-
-      lineBreakIndices.push_back(nextBreakIndex);
-      currentWordIndex = nextBreakIndex;
     }
-
-    return lineBreakIndices;
   }
 
-  
+  // Stores the index of the word that starts the next line (last_word_index + 1)
+  std::vector<size_t> lineBreakIndices;
+  size_t currentWordIndex = 0;
+
+  while (currentWordIndex < totalWordCount) {
+    size_t nextBreakIndex = ans[currentWordIndex] + 1;
+
+    // Safety check: prevent infinite loop if nextBreakIndex doesn't advance
+    if (nextBreakIndex <= currentWordIndex) {
+      // Force advance by at least one word to avoid infinite loop
+      nextBreakIndex = currentWordIndex + 1;
+    }
+
+    lineBreakIndices.push_back(nextBreakIndex);
+    currentWordIndex = nextBreakIndex;
+  }
+
+  return lineBreakIndices;
 }
 
 void ParsedText::applyParagraphIndent() {
@@ -327,7 +304,11 @@ void ParsedText::applyParagraphIndent() {
     return;
   }
 
-  if (style == TextBlock::JUSTIFIED || style == TextBlock::LEFT_ALIGN) {
+  if (blockStyle.textIndentDefined) {
+    // CSS text-indent is explicitly set (even if 0) - don't use fallback EmSpace
+    // The actual indent positioning is handled in extractLine()
+  } else if (blockStyle.alignment == CssTextAlign::Justify || blockStyle.alignment == CssTextAlign::Left) {
+    // No CSS text-indent defined - use EmSpace fallback for visual indent
     words.front().insert(0, "\xe2\x80\x83");
   }
 }
@@ -336,109 +317,85 @@ void ParsedText::applyParagraphIndent() {
 std::vector<size_t> ParsedText::computeHyphenatedLineBreaks(const GfxRenderer& renderer, const int fontId,
                                                             const int pageWidth, const int spaceWidth,
                                                             std::vector<uint16_t>& wordWidths) {
+  // Calculate first line indent (only for left/justified text without extra paragraph spacing)
+  const int firstLineIndent =
+      blockStyle.textIndent > 0 && !extraParagraphSpacing &&
+              (blockStyle.alignment == CssTextAlign::Justify || blockStyle.alignment == CssTextAlign::Left)
+          ? blockStyle.textIndent
+          : 0;
+
+  const bool hasThai = containsThaiText();
+
+  // For Thai text, build a mutable random-access copy of wordNoSpaceBefore
+  // (needs to grow when words are split by hyphenation).
+  std::vector<bool> noSpaceBeforeVec;
+  if (hasThai) {
+    noSpaceBeforeVec.assign(wordNoSpaceBefore.begin(), wordNoSpaceBefore.end());
+  }
+
   std::vector<size_t> lineBreakIndices;
   size_t currentIndex = 0;
+  bool isFirstLine = true;
 
-  bool hasThai = false;
-  for (const auto& word : words) {
-    if (ThaiShaper::containsThai(word.c_str())) {
-      hasThai = true;
+  while (currentIndex < wordWidths.size()) {
+    const size_t lineStart = currentIndex;
+    int lineWidth = 0;
+
+    // First line has reduced width due to text-indent
+    const int effectivePageWidth = isFirstLine ? pageWidth - firstLineIndent : pageWidth;
+
+    // Consume as many words as possible for current line, splitting when prefixes fit
+    while (currentIndex < wordWidths.size()) {
+      const bool isFirstWord = currentIndex == lineStart;
+
+      // Determine spacing: Thai words marked no-space-before get 0; non-Thai uses standard logic.
+      int spacing;
+      if (isFirstWord) {
+        spacing = 0;
+      } else if (hasThai && noSpaceBeforeVec[currentIndex]) {
+        spacing = 0;
+      } else {
+        spacing = spaceWidth;
+      }
+
+      const int candidateWidth = spacing + wordWidths[currentIndex];
+
+      // Word fits on current line
+      if (lineWidth + candidateWidth <= effectivePageWidth) {
+        lineWidth += candidateWidth;
+        ++currentIndex;
+        continue;
+      }
+
+      // Word would overflow — try to split based on hyphenation points
+      const int availableWidth = effectivePageWidth - lineWidth - spacing;
+      const bool allowFallbackBreaks = isFirstWord;  // Only for first word on line
+
+      if (availableWidth > 0 &&
+          hyphenateWordAtIndex(currentIndex, availableWidth, renderer, fontId, wordWidths, allowFallbackBreaks)) {
+        // Prefix now fits; append it to this line and move to next line
+        // Update noSpaceBeforeVec to match the inserted word (Thai path)
+        if (hasThai) {
+          noSpaceBeforeVec.insert(noSpaceBeforeVec.begin() + currentIndex + 1, false);
+        }
+        lineWidth += spacing + wordWidths[currentIndex];
+        ++currentIndex;
+        break;
+      }
+
+      // Could not split: force at least one word per line to avoid infinite loop
+      if (currentIndex == lineStart) {
+        lineWidth += candidateWidth;
+        ++currentIndex;
+      }
       break;
     }
+
+    lineBreakIndices.push_back(currentIndex);
+    isFirstLine = false;
   }
 
-  if (hasThai) {
-    // Create vector copy of wordNoSpaceBefore for efficient random access
-    std::vector<bool> noSpaceBeforeVec(wordNoSpaceBefore.begin(), wordNoSpaceBefore.end());
-
-    while (currentIndex < wordWidths.size()) {
-      const size_t lineStart = currentIndex;
-      int lineWidth = 0;
-
-      // Consume as many words as possible for current line, splitting when prefixes fit
-      while (currentIndex < wordWidths.size()) {
-        const bool isFirstWord = currentIndex == lineStart;
-        const int spacing = (isFirstWord || noSpaceBeforeVec[currentIndex]) ? 0 : spaceWidth;
-        const int candidateWidth = spacing + wordWidths[currentIndex];
-
-        // Word fits on current line
-        if (lineWidth + candidateWidth <= pageWidth) {
-          lineWidth += candidateWidth;
-          ++currentIndex;
-          continue;
-        }
-
-        // Word would overflow — try to split based on hyphenation points
-        const int availableWidth = pageWidth - lineWidth - spacing;
-        const bool allowFallbackBreaks = isFirstWord;  // Only for first word on line
-
-        if (availableWidth > 0 &&
-            hyphenateWordAtIndex(currentIndex, availableWidth, renderer, fontId, wordWidths, allowFallbackBreaks)) {
-          // Prefix now fits; append it to this line and move to next line
-          // Also update noSpaceBeforeVec to match the inserted word
-          noSpaceBeforeVec.insert(noSpaceBeforeVec.begin() + currentIndex + 1, false);
-          lineWidth += spacing + wordWidths[currentIndex];
-          ++currentIndex;
-          break;
-        }
-
-        // Could not split: force at least one word per line to avoid infinite loop
-        if (currentIndex == lineStart) {
-          lineWidth += candidateWidth;
-          ++currentIndex;
-        }
-        break;
-      }
-
-      lineBreakIndices.push_back(currentIndex);
-    }
-
-    return lineBreakIndices;
-  } else {
-    while (currentIndex < wordWidths.size()) {
-      const size_t lineStart = currentIndex;
-      int lineWidth = 0;
-  
-      // Consume as many words as possible for current line, splitting when prefixes fit
-      while (currentIndex < wordWidths.size()) {
-        const bool isFirstWord = currentIndex == lineStart;
-        const int spacing = isFirstWord ? 0 : spaceWidth;
-        const int candidateWidth = spacing + wordWidths[currentIndex];
-  
-        // Word fits on current line
-        if (lineWidth + candidateWidth <= pageWidth) {
-          lineWidth += candidateWidth;
-          ++currentIndex;
-          continue;
-        }
-  
-        // Word would overflow — try to split based on hyphenation points
-        const int availableWidth = pageWidth - lineWidth - spacing;
-        const bool allowFallbackBreaks = isFirstWord;  // Only for first word on line
-  
-        if (availableWidth > 0 &&
-            hyphenateWordAtIndex(currentIndex, availableWidth, renderer, fontId, wordWidths, allowFallbackBreaks)) {
-          // Prefix now fits; append it to this line and move to next line
-          lineWidth += spacing + wordWidths[currentIndex];
-          ++currentIndex;
-          break;
-        }
-  
-        // Could not split: force at least one word per line to avoid infinite loop
-        if (currentIndex == lineStart) {
-          lineWidth += candidateWidth;
-          ++currentIndex;
-        }
-        break;
-      }
-  
-      lineBreakIndices.push_back(currentIndex);
-    }
-  
-    return lineBreakIndices;
-  }
-
-  
+  return lineBreakIndices;
 }
 
 // Splits words[wordIndex] into prefix (adding a hyphen only when needed) and remainder when a legal breakpoint fits the
@@ -451,278 +408,190 @@ bool ParsedText::hyphenateWordAtIndex(const size_t wordIndex, const int availabl
     return false;
   }
 
-  bool hasThai = false;
-  for (const auto& word : words) {
-    if (ThaiShaper::containsThai(word.c_str())) {
-      hasThai = true;
-      break;
-    }
+  // Get iterators to target word, style, and (for Thai) no-space flag.
+  auto wordIt = words.begin();
+  auto styleIt = wordStyles.begin();
+  auto noSpaceIt = wordNoSpaceBefore.begin();
+  std::advance(wordIt, wordIndex);
+  std::advance(styleIt, wordIndex);
+  std::advance(noSpaceIt, wordIndex);
+
+  const std::string& word = *wordIt;
+  const auto style = *styleIt;
+
+  // Collect candidate breakpoints (byte offsets and hyphen requirements).
+  auto breakInfos = Hyphenator::breakOffsets(word, allowFallbackBreaks);
+  if (breakInfos.empty()) {
+    return false;
   }
 
-  if (hasThai) {
-    // Get iterators to target word, style, and no-space flag.
-    auto wordIt = words.begin();
-    auto styleIt = wordStyles.begin();
-    auto noSpaceIt = wordNoSpaceBefore.begin();
-    std::advance(wordIt, wordIndex);
-    std::advance(styleIt, wordIndex);
-    std::advance(noSpaceIt, wordIndex);
+  size_t chosenOffset = 0;
+  int chosenWidth = -1;
+  bool chosenNeedsHyphen = true;
 
-    const std::string& word = *wordIt;
-    const auto style = *styleIt;
-
-    // Collect candidate breakpoints (byte offsets and hyphen requirements).
-    auto breakInfos = Hyphenator::breakOffsets(word, allowFallbackBreaks);
-    if (breakInfos.empty()) {
-      return false;
+  // Iterate over each legal breakpoint and retain the widest prefix that still fits.
+  for (const auto& info : breakInfos) {
+    const size_t offset = info.byteOffset;
+    if (offset == 0 || offset >= word.size()) {
+      continue;
     }
 
-    size_t chosenOffset = 0;
-    int chosenWidth = -1;
-    bool chosenNeedsHyphen = true;
-
-    // Iterate over each legal breakpoint and retain the widest prefix that still fits.
-    for (const auto& info : breakInfos) {
-      const size_t offset = info.byteOffset;
-      if (offset == 0 || offset >= word.size()) {
-        continue;
-      }
-
-      const bool needsHyphen = info.requiresInsertedHyphen;
-      const int prefixWidth = measureWordWidth(renderer, fontId, word.substr(0, offset), style, needsHyphen);
-      if (prefixWidth > availableWidth || prefixWidth <= chosenWidth) {
-        continue;  // Skip if too wide or not an improvement
-      }
-
-      chosenWidth = prefixWidth;
-      chosenOffset = offset;
-      chosenNeedsHyphen = needsHyphen;
+    const bool needsHyphen = info.requiresInsertedHyphen;
+    const int prefixWidth = measureWordWidth(renderer, fontId, word.substr(0, offset), style, needsHyphen);
+    if (prefixWidth > availableWidth || prefixWidth <= chosenWidth) {
+      continue;  // Skip if too wide or not an improvement
     }
 
-    if (chosenWidth < 0) {
-      // No hyphenation point produced a prefix that fits in the remaining space.
-      return false;
-    }
-
-    // Split the word at the selected breakpoint and append a hyphen if required.
-    std::string remainder = word.substr(chosenOffset);
-    wordIt->resize(chosenOffset);
-    if (chosenNeedsHyphen) {
-      wordIt->push_back('-');
-    }
-
-    // Insert the remainder word (with matching style and no-space flag) directly after the prefix.
-    auto insertWordIt = std::next(wordIt);
-    auto insertStyleIt = std::next(styleIt);
-    auto insertNoSpaceIt = std::next(noSpaceIt);
-    words.insert(insertWordIt, remainder);
-    wordStyles.insert(insertStyleIt, style);
-    wordNoSpaceBefore.insert(insertNoSpaceIt, false);  // Remainder is a normal word (will be first on next line)
-
-    // Update cached widths to reflect the new prefix/remainder pairing.
-    wordWidths[wordIndex] = static_cast<uint16_t>(chosenWidth);
-    const uint16_t remainderWidth = measureWordWidth(renderer, fontId, remainder, style);
-    wordWidths.insert(wordWidths.begin() + wordIndex + 1, remainderWidth);
-    return true;
-  } else {
-    // Get iterators to target word and style.
-    auto wordIt = words.begin();
-    auto styleIt = wordStyles.begin();
-    std::advance(wordIt, wordIndex);
-    std::advance(styleIt, wordIndex);
-
-    const std::string& word = *wordIt;
-    const auto style = *styleIt;
-
-    // Collect candidate breakpoints (byte offsets and hyphen requirements).
-    auto breakInfos = Hyphenator::breakOffsets(word, allowFallbackBreaks);
-    if (breakInfos.empty()) {
-      return false;
-    }
-
-    size_t chosenOffset = 0;
-    int chosenWidth = -1;
-    bool chosenNeedsHyphen = true;
-
-    // Iterate over each legal breakpoint and retain the widest prefix that still fits.
-    for (const auto& info : breakInfos) {
-      const size_t offset = info.byteOffset;
-      if (offset == 0 || offset >= word.size()) {
-        continue;
-      }
-
-      const bool needsHyphen = info.requiresInsertedHyphen;
-      const int prefixWidth = measureWordWidth(renderer, fontId, word.substr(0, offset), style, needsHyphen);
-      if (prefixWidth > availableWidth || prefixWidth <= chosenWidth) {
-        continue;  // Skip if too wide or not an improvement
-      }
-
-      chosenWidth = prefixWidth;
-      chosenOffset = offset;
-      chosenNeedsHyphen = needsHyphen;
-    }
-
-    if (chosenWidth < 0) {
-      // No hyphenation point produced a prefix that fits in the remaining space.
-      return false;
-    }
-
-    // Split the word at the selected breakpoint and append a hyphen if required.
-    std::string remainder = word.substr(chosenOffset);
-    wordIt->resize(chosenOffset);
-    if (chosenNeedsHyphen) {
-      wordIt->push_back('-');
-    }
-
-    // Insert the remainder word (with matching style) directly after the prefix.
-    auto insertWordIt = std::next(wordIt);
-    auto insertStyleIt = std::next(styleIt);
-    words.insert(insertWordIt, remainder);
-    wordStyles.insert(insertStyleIt, style);
-
-    // Update cached widths to reflect the new prefix/remainder pairing.
-    wordWidths[wordIndex] = static_cast<uint16_t>(chosenWidth);
-    const uint16_t remainderWidth = measureWordWidth(renderer, fontId, remainder, style);
-    wordWidths.insert(wordWidths.begin() + wordIndex + 1, remainderWidth);
-    return true;
+    chosenWidth = prefixWidth;
+    chosenOffset = offset;
+    chosenNeedsHyphen = needsHyphen;
   }
 
-  
+  if (chosenWidth < 0) {
+    // No hyphenation point produced a prefix that fits in the remaining space.
+    return false;
+  }
+
+  // Split the word at the selected breakpoint and append a hyphen if required.
+  std::string remainder = word.substr(chosenOffset);
+  wordIt->resize(chosenOffset);
+  if (chosenNeedsHyphen) {
+    wordIt->push_back('-');
+  }
+
+  // Insert the remainder word (with matching style and no-space flag) directly after the prefix.
+  auto insertWordIt = std::next(wordIt);
+  auto insertStyleIt = std::next(styleIt);
+  auto insertNoSpaceIt = std::next(noSpaceIt);
+  words.insert(insertWordIt, remainder);
+  wordStyles.insert(insertStyleIt, style);
+  wordNoSpaceBefore.insert(insertNoSpaceIt, false);  // Remainder is a normal word (will be first on next line)
+
+  // Update cached widths to reflect the new prefix/remainder pairing.
+  wordWidths[wordIndex] = static_cast<uint16_t>(chosenWidth);
+  const uint16_t remainderWidth = measureWordWidth(renderer, fontId, remainder, style);
+  wordWidths.insert(wordWidths.begin() + wordIndex + 1, remainderWidth);
+  return true;
 }
 
 void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const int spaceWidth,
                              const std::vector<uint16_t>& wordWidths, const std::vector<size_t>& lineBreakIndices,
                              const std::function<void(std::shared_ptr<TextBlock>)>& processLine) {
-  
-  
   const size_t lineBreak = lineBreakIndices[breakIndex];
   const size_t lastBreakAt = breakIndex > 0 ? lineBreakIndices[breakIndex - 1] : 0;
   const size_t lineWordCount = lineBreak - lastBreakAt;
 
-  // Calculate total word width for this line
+  // Calculate first line indent (only for left/justified text without extra paragraph spacing)
+  const bool isFirstLine = breakIndex == 0;
+  const int firstLineIndent =
+      isFirstLine && blockStyle.textIndent > 0 && !extraParagraphSpacing &&
+              (blockStyle.alignment == CssTextAlign::Justify || blockStyle.alignment == CssTextAlign::Left)
+          ? blockStyle.textIndent
+          : 0;
+
+  const bool hasThai = containsThaiText();
+
+  // Calculate total word width for this line and count actual word gaps.
+  // For Thai text, words marked no-space-before don't create a gap.
+  // For non-Thai text, attaching punctuation doesn't create a gap.
   int lineWordWidthSum = 0;
-  for (size_t i = lastBreakAt; i < lineBreak; i++) {
-    lineWordWidthSum += wordWidths[i];
-  }
+  size_t actualGapCount = 0;
+  auto countWordIt = words.begin();
+  auto countNoSpaceIt = wordNoSpaceBefore.begin();
 
-  bool hasThai = false;
-  for (const auto& word : words) {
-    if (ThaiShaper::containsThai(word.c_str())) {
-      hasThai = true;
-      break;
-    }
-  }
+  for (size_t wordIdx = 0; wordIdx < lineWordCount; wordIdx++) {
+    lineWordWidthSum += wordWidths[lastBreakAt + wordIdx];
 
-  if (hasThai) {
-    // Count actual word gaps (excluding no-space words) for justified spacing
-    auto noSpaceIt = wordNoSpaceBefore.begin();
-    std::advance(noSpaceIt, lastBreakAt);
-    size_t actualWordGaps = 0;
-    for (size_t i = lastBreakAt; i < lineBreak; i++) {
-      if (i > lastBreakAt && !*noSpaceIt) {
-        actualWordGaps++;
+    if (wordIdx > 0) {
+      if (hasThai) {
+        if (!*countNoSpaceIt) {
+          actualGapCount++;
+        }
+      } else {
+        if (!isAttachingPunctuationWord(*countWordIt)) {
+          actualGapCount++;
+        }
       }
-      ++noSpaceIt;
     }
+    ++countWordIt;
+    ++countNoSpaceIt;
+  }
 
-    // Calculate spacing
-    const int spareSpace = pageWidth - lineWordWidthSum;
+  // Calculate spacing (account for indent reducing effective page width on first line)
+  const int effectivePageWidth = pageWidth - firstLineIndent;
+  const int spareSpace = effectivePageWidth - lineWordWidthSum;
 
-    int spacing = spaceWidth;
-    const bool isLastLine = breakIndex == lineBreakIndices.size() - 1;
+  int spacing = spaceWidth;
+  const bool isLastLine = breakIndex == lineBreakIndices.size() - 1;
 
-    if (style == TextBlock::JUSTIFIED && !isLastLine && actualWordGaps >= 1) {
-      spacing = spareSpace / actualWordGaps;
-    }
+  // For justified text, calculate spacing based on actual gap count
+  if (blockStyle.alignment == CssTextAlign::Justify && !isLastLine && actualGapCount >= 1) {
+    spacing = spareSpace / static_cast<int>(actualGapCount);
+  }
 
-    // Calculate initial x position (for right/center align, use actual word gaps)
-    uint16_t xpos = 0;
-    if (style == TextBlock::RIGHT_ALIGN) {
-      xpos = spareSpace - actualWordGaps * spaceWidth;
-    } else if (style == TextBlock::CENTER_ALIGN) {
-      xpos = (spareSpace - actualWordGaps * spaceWidth) / 2;
-    }
+  // Calculate initial x position (first line starts at indent for left/justified text)
+  auto xpos = static_cast<uint16_t>(firstLineIndent);
+  if (blockStyle.alignment == CssTextAlign::Right) {
+    xpos = spareSpace - static_cast<int>(actualGapCount) * spaceWidth;
+  } else if (blockStyle.alignment == CssTextAlign::Center) {
+    xpos = (spareSpace - static_cast<int>(actualGapCount) * spaceWidth) / 2;
+  }
 
-    // Pre-calculate X positions for words, skipping spacing for no-space words
-    std::list<uint16_t> lineXPos;
-    noSpaceIt = wordNoSpaceBefore.begin();
-    std::advance(noSpaceIt, lastBreakAt);
-    for (size_t i = lastBreakAt; i < lineBreak; i++) {
-      const uint16_t currentWordWidth = wordWidths[i];
-      lineXPos.push_back(xpos);
-      const bool skipSpacing = (i == lastBreakAt) || *noSpaceIt;
+  // Pre-calculate X positions for words.
+  // Thai: skip spacing for words marked no-space-before.
+  // Non-Thai: skip spacing before attaching punctuation.
+  std::list<uint16_t> lineXPos;
+  auto wordIt = words.begin();
+  auto noSpaceIt = wordNoSpaceBefore.begin();
+
+  for (size_t wordIdx = 0; wordIdx < lineWordCount; wordIdx++) {
+    const uint16_t currentWordWidth = wordWidths[lastBreakAt + wordIdx];
+    lineXPos.push_back(xpos);
+
+    if (hasThai) {
+      // Thai path: look at the *next* word's no-space flag to decide spacing after this word.
+      auto nextNoSpaceIt = noSpaceIt;
+      ++nextNoSpaceIt;
+      auto nextWordIt = wordIt;
+      ++nextWordIt;
+      const bool skipSpacing = (wordIdx + 1 < lineWordCount) &&
+                               (nextNoSpaceIt != wordNoSpaceBefore.end() && *nextNoSpaceIt);
       xpos += currentWordWidth + (skipSpacing ? 0 : spacing);
-      ++noSpaceIt;
+    } else {
+      // Non-Thai path: skip spacing if the next word is attaching punctuation.
+      auto nextWordIt = wordIt;
+      ++nextWordIt;
+      const bool nextIsAttachingPunctuation =
+          wordIdx + 1 < lineWordCount && isAttachingPunctuationWord(*nextWordIt);
+      xpos += currentWordWidth + (nextIsAttachingPunctuation ? 0 : spacing);
     }
 
-    // Iterators always start at the beginning as we are moving content with splice below
-    auto wordEndIt = words.begin();
-    auto wordStyleEndIt = wordStyles.begin();
-    auto noSpaceEndIt = wordNoSpaceBefore.begin();
-    std::advance(wordEndIt, lineWordCount);
-    std::advance(wordStyleEndIt, lineWordCount);
-    std::advance(noSpaceEndIt, lineWordCount);
-
-    // *** CRITICAL STEP: CONSUME DATA USING SPLICE ***
-    std::list<std::string> lineWords;
-    lineWords.splice(lineWords.begin(), words, words.begin(), wordEndIt);
-    std::list<EpdFontFamily::Style> lineWordStyles;
-    lineWordStyles.splice(lineWordStyles.begin(), wordStyles, wordStyles.begin(), wordStyleEndIt);
-    std::list<bool> lineNoSpaceBefore;
-    lineNoSpaceBefore.splice(lineNoSpaceBefore.begin(), wordNoSpaceBefore, wordNoSpaceBefore.begin(), noSpaceEndIt);
-
-    for (auto& word : lineWords) {
-      if (containsSoftHyphen(word)) {
-        stripSoftHyphensInPlace(word);
-      }
-    }
-
-    processLine(std::make_shared<TextBlock>(std::move(lineWords), std::move(lineXPos), std::move(lineWordStyles), style));
-  } else {
-    // Calculate spacing
-    const int spareSpace = pageWidth - lineWordWidthSum;
-
-    int spacing = spaceWidth;
-    const bool isLastLine = breakIndex == lineBreakIndices.size() - 1;
-
-    if (style == TextBlock::JUSTIFIED && !isLastLine && lineWordCount >= 2) {
-      spacing = spareSpace / (lineWordCount - 1);
-    }
-
-    // Calculate initial x position
-    uint16_t xpos = 0;
-    if (style == TextBlock::RIGHT_ALIGN) {
-      xpos = spareSpace - (lineWordCount - 1) * spaceWidth;
-    } else if (style == TextBlock::CENTER_ALIGN) {
-      xpos = (spareSpace - (lineWordCount - 1) * spaceWidth) / 2;
-    }
-
-    // Pre-calculate X positions for words
-    std::list<uint16_t> lineXPos;
-    for (size_t i = lastBreakAt; i < lineBreak; i++) {
-      const uint16_t currentWordWidth = wordWidths[i];
-      lineXPos.push_back(xpos);
-      xpos += currentWordWidth + spacing;
-    }
-
-    // Iterators always start at the beginning as we are moving content with splice below
-    auto wordEndIt = words.begin();
-    auto wordStyleEndIt = wordStyles.begin();
-    std::advance(wordEndIt, lineWordCount);
-    std::advance(wordStyleEndIt, lineWordCount);
-
-    // *** CRITICAL STEP: CONSUME DATA USING SPLICE ***
-    std::list<std::string> lineWords;
-    lineWords.splice(lineWords.begin(), words, words.begin(), wordEndIt);
-    std::list<EpdFontFamily::Style> lineWordStyles;
-    lineWordStyles.splice(lineWordStyles.begin(), wordStyles, wordStyles.begin(), wordStyleEndIt);
-
-    for (auto& word : lineWords) {
-      if (containsSoftHyphen(word)) {
-        stripSoftHyphensInPlace(word);
-      }
-    }
-
-    processLine(std::make_shared<TextBlock>(std::move(lineWords), std::move(lineXPos), std::move(lineWordStyles), style));
+    ++wordIt;
+    ++noSpaceIt;
   }
+
+  // Iterators always start at the beginning as we are moving content with splice below
+  auto wordEndIt = words.begin();
+  auto wordStyleEndIt = wordStyles.begin();
+  auto noSpaceEndIt = wordNoSpaceBefore.begin();
+  std::advance(wordEndIt, lineWordCount);
+  std::advance(wordStyleEndIt, lineWordCount);
+  std::advance(noSpaceEndIt, lineWordCount);
+
+  // *** CRITICAL STEP: CONSUME DATA USING SPLICE ***
+  std::list<std::string> lineWords;
+  lineWords.splice(lineWords.begin(), words, words.begin(), wordEndIt);
+  std::list<EpdFontFamily::Style> lineWordStyles;
+  lineWordStyles.splice(lineWordStyles.begin(), wordStyles, wordStyles.begin(), wordStyleEndIt);
+  std::list<bool> lineNoSpaceBefore;
+  lineNoSpaceBefore.splice(lineNoSpaceBefore.begin(), wordNoSpaceBefore, wordNoSpaceBefore.begin(), noSpaceEndIt);
+
+  for (auto& word : lineWords) {
+    if (containsSoftHyphen(word)) {
+      stripSoftHyphensInPlace(word);
+    }
+  }
+
+  processLine(
+      std::make_shared<TextBlock>(std::move(lineWords), std::move(lineXPos), std::move(lineWordStyles), blockStyle));
 }
